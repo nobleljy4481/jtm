@@ -718,6 +718,69 @@
     ctx.fillText("Z", xToPixel(4) + 16, originY + 5);
   }
 
+  /* ===== Task 8: 5·6-1단계 — 신뢰도의 의미 · z 찾기 ===== */
+
+  function s5Render() {
+    const container = document.getElementById("step-5");
+    container.innerHTML =
+      '<h2>5. 신뢰도의 필요성과 의미</h2>' +
+      '<div class="card">' +
+        '<p>모평균을 추정하기 위해 만든 구간을 <strong>"신뢰구간"</strong>이라 부르고, 같은 방법으로 구간을 반복해서 만들었을 때 그 구간이 실제 모평균을 포함할 것으로 기대되는 비율을 <strong>"신뢰도"</strong>라고 합니다.</p>' +
+        '<p>일반적으로 통계에서는 신뢰도로 <strong>95%와 99%</strong>를 많이 사용합니다.</p>' +
+      '</div>';
+  }
+
+  const TARGET_TOLERANCE = 0.003;
+
+  function s6FindRender() {
+    const container = document.getElementById("step-6");
+    const targetArea = state.s6Target / 100;
+    const currentArea = normalAreaBetween(state.s6Z);
+    const found = Math.abs(currentArea - targetArea) < TARGET_TOLERANCE;
+
+    if (found) {
+      if (state.s6Target === 95) state.s6Found95 = true;
+      if (state.s6Target === 99) state.s6Found99 = true;
+    }
+
+    container.innerHTML =
+      '<h2>6. 표준정규분포를 이용한 신뢰구간 공식 유도</h2>' +
+      '<div class="card">' +
+        '<p>아래 슬라이더로 표준정규분포의 가운데 영역을 조절하면서, 그 영역의 넓이가 0.95, 0.99가 되는 순간의 z값을 찾아봅시다.</p>' +
+      '</div>' +
+      '<div class="card controls-card">' +
+        '<div class="control-row toggle-row"><span>목표</span>' +
+          '<div class="toggle-group" id="s6-target">' +
+            '<button class="toggle-btn' + (state.s6Target === 95 ? " active" : "") + '" data-val="95">95% 찾기' + (state.s6Found95 ? " ✓" : "") + '</button>' +
+            '<button class="toggle-btn' + (state.s6Target === 99 ? " active" : "") + '" data-val="99">99% 찾기' + (state.s6Found99 ? " ✓" : "") + '</button>' +
+          '</div></div>' +
+        '<div class="control-row"><label for="s6-z">경계값 (z = ± <span id="s6-z-val">' + state.s6Z.toFixed(2) + '</span>)</label>' +
+          '<input type="range" id="s6-z" min="0" max="3.5" step="0.01" value="' + state.s6Z + '"></div>' +
+      '</div>' +
+      '<div class="card">' +
+        '<canvas id="s6-curve-canvas" width="600" height="260"></canvas>' +
+        '<p class="summary-text' + (found ? ' found' : '') + '" id="s6-area-readout">현재 가운데 영역: ' + currentArea.toFixed(3) + ' (목표: ' + targetArea.toFixed(2) + ')</p>' +
+        '<div class="feedback' + (found ? " correct" : " hidden") + '" id="s6-found-box">' +
+          (found ? ("찾았습니다! z ≈ " + state.s6Z.toFixed(2) + "일 때 가운데 영역이 " + targetArea.toFixed(2) + "가 됩니다. 이 값이 " + state.s6Target + "% 신뢰도의 신뢰구간에 쓰이는 값입니다.") : "") +
+        '</div>' +
+      '</div>';
+
+    drawNormalCurveInteractive(document.getElementById("s6-curve-canvas"), state.s6Z, found);
+
+    document.querySelectorAll("#s6-target .toggle-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        state.s6Target = Number(btn.dataset.val);
+        saveState();
+        s6FindRender();
+      });
+    });
+    document.getElementById("s6-z").addEventListener("input", function (e) {
+      state.s6Z = Number(e.target.value);
+      saveState();
+      s6FindRender();
+    });
+  }
+
   // 임시 초기화 호출 (Task 13에서 정식 init()으로 교체 예정)
   loadState();
   initPopulation();
@@ -725,6 +788,8 @@
   s2Render();
   s3Render();
   s4Render();
+  s5Render();
+  s6FindRender();
   goToStep(1);
   initNavEvents();
 
