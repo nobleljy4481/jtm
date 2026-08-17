@@ -388,10 +388,108 @@
     });
   }
 
+  /* ===== Task 5: 2·3단계 — 점추정의 한계 · 구간추정의 필요성 ===== */
+
+  function drawMeanDotPlot(canvas, means) {
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (means.length === 0) return;
+    const min = Math.min.apply(null, means) - 5, max = Math.max.apply(null, means) + 5;
+    const chartW = canvas.width - 60;
+    const originX = 30;
+    const bottomMargin = 34;
+    const colHeights = {};
+
+    means.forEach(function (v, i) {
+      const x = Math.round(originX + ((v - min) / (max - min)) * chartW);
+      colHeights[x] = (colHeights[x] || 0) + 1;
+      const y = canvas.height - bottomMargin - colHeights[x] * 6;
+      const isLast = i === means.length - 1;
+      ctx.beginPath();
+      ctx.arc(x, y, isLast ? 5 : 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = isLast ? "#2563EB" : "#93C5FD";
+      ctx.fill();
+    });
+
+    ctx.strokeStyle = "#94A3B8";
+    ctx.beginPath();
+    ctx.moveTo(originX, canvas.height - bottomMargin + 6);
+    ctx.lineTo(originX + chartW, canvas.height - bottomMargin + 6);
+    ctx.stroke();
+    ctx.fillStyle = "#64748B";
+    ctx.font = "12px Pretendard, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("표본평균 (분)", canvas.width / 2, canvas.height - 4);
+    ctx.textAlign = "left";
+  }
+
+  function s2DrawSample() {
+    const sample = sampleWithReplacement(state.population, state.s2SampleSize, Math.random);
+    const sampleMean = mean(sample.map(function (s) { return s.minutes; }));
+    state.s2History.push(sampleMean);
+    saveState();
+    s2Render();
+  }
+
+  function s2Render() {
+    const container = document.getElementById("step-2");
+    container.innerHTML =
+      '<h2>2. 점추정의 한계</h2>' +
+      '<div class="card">' +
+        '<p>같은 방법으로 학생 ' + state.s2SampleSize + '명을 여러 번 뽑아 표본평균을 계산해봅시다. 뽑을 때마다 표본평균이 어떻게 달라지는지 관찰해보세요.</p>' +
+      '</div>' +
+      '<div class="card controls-card">' +
+        '<button class="btn-primary" id="s2-draw">표본 1개 뽑기</button>' +
+        '<button class="btn-secondary" id="s2-reset">초기화</button>' +
+      '</div>' +
+      '<div class="card"><canvas id="s2-chart" width="600" height="170"></canvas>' +
+        '<p id="s2-summary" class="summary-text"></p></div>' +
+      '<div class="card reflect-card">' +
+        '<p>표본을 뽑을 때마다 표본평균 값이 계속 달라집니다. 그렇다면 이 값들 중 어느 하나가 정확히 "진짜" 모평균이라고 확신할 수 있을까요?</p>' +
+      '</div>';
+
+    const canvas = document.getElementById("s2-chart");
+    if (state.s2History.length === 0) {
+      const summary = document.getElementById("s2-summary");
+      summary.textContent = '아직 표본을 뽑지 않았습니다. "표본 1개 뽑기" 버튼을 눌러보세요.';
+    } else {
+      drawMeanDotPlot(canvas, state.s2History);
+      const last = state.s2History[state.s2History.length - 1];
+      document.getElementById("s2-summary").textContent =
+        "지금까지 " + state.s2History.length + "번 뽑았습니다. 이번 표본평균: " + last.toFixed(1) + "분";
+    }
+
+    document.getElementById("s2-draw").addEventListener("click", s2DrawSample);
+    document.getElementById("s2-reset").addEventListener("click", function () {
+      state.s2History = [];
+      saveState();
+      s2Render();
+    });
+  }
+
+  function s3Render() {
+    const container = document.getElementById("step-3");
+    container.innerHTML =
+      '<h2>3. 구간추정의 필요성</h2>' +
+      '<div class="card">' +
+        '<p>방금 확인했듯, 표본평균 하나(점추정)는 뽑을 때마다 달라집니다. 그렇다면 모평균을 <strong>하나의 값이 아니라 일정한 범위(구간)</strong>로 추정하면 어떤 점이 더 나을까요? 자유롭게 생각을 적어보세요.</p>' +
+        '<textarea id="s3-text" rows="4" placeholder="예: 표본평균이 매번 달라지니까..."></textarea>' +
+      '</div>';
+
+    const textarea = document.getElementById("s3-text");
+    textarea.value = state.s3Text || "";
+    textarea.addEventListener("input", function (e) {
+      state.s3Text = e.target.value;
+      saveState();
+    });
+  }
+
   // 임시 초기화 호출 (Task 13에서 정식 init()으로 교체 예정)
   loadState();
   initPopulation();
   s1Render();
+  s2Render();
+  s3Render();
   goToStep(1);
   initNavEvents();
 
