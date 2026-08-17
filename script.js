@@ -781,6 +781,92 @@
     });
   }
 
+  /* ===== Task 9: 6-2단계 — 부등식 변형 ===== */
+
+  function s6DerivLines(level) {
+    const z = Z_VALUES[level];
+    const p = (level / 100).toFixed(2);
+    return [
+      "$P(-" + z + " \\le Z \\le " + z + ") = " + p + "$",
+      "$P\\left(-" + z + " \\le \\dfrac{\\bar X - m}{\\sigma/\\sqrt n} \\le " + z + "\\right) = " + p + "$",
+    ];
+  }
+
+  function s6McqOptions(level) {
+    const z = Z_VALUES[level];
+    const correct = "$\\bar X - " + z + "\\dfrac{\\sigma}{\\sqrt n} \\le m \\le \\bar X + " + z + "\\dfrac{\\sigma}{\\sqrt n}$";
+    const wrongSign = "$\\bar X + " + z + "\\dfrac{\\sigma}{\\sqrt n} \\le m \\le \\bar X - " + z + "\\dfrac{\\sigma}{\\sqrt n}$";
+    const wrongNoSqrt = "$\\bar X - " + z + "\\sigma \\le m \\le \\bar X + " + z + "\\sigma$";
+    const wrongOneSide = "$m \\le \\bar X + " + z + "\\dfrac{\\sigma}{\\sqrt n}$";
+    return [
+      { text: correct, correct: true },
+      { text: wrongSign, correct: false },
+      { text: wrongNoSqrt, correct: false },
+      { text: wrongOneSide, correct: false },
+    ];
+  }
+
+  function s6DerivRender() {
+    const container = document.getElementById("step-6");
+    const existing = container.querySelector("#s6-deriv-section");
+    if (existing) existing.remove();
+
+    const level = state.s6DerivLevel;
+    const lines = s6DerivLines(level);
+    const options = s6McqOptions(level);
+
+    const section = document.createElement("div");
+    section.id = "s6-deriv-section";
+    section.innerHTML =
+      '<div class="card">' +
+        '<h3>부등식 변형 — 방금 찾은 z값으로 신뢰구간 공식 유도하기</h3>' +
+        '<div class="control-row toggle-row"><span>신뢰도</span>' +
+          '<div class="toggle-group" id="s6-deriv-level">' +
+            '<button class="toggle-btn' + (level === 95 ? " active" : "") + '" data-val="95">95%</button>' +
+            '<button class="toggle-btn' + (level === 99 ? " active" : "") + '" data-val="99">99%</button>' +
+          '</div></div>' +
+        '<div id="s6-deriv-lines">' + lines.map(function (l) { return "<p>" + l + "</p>"; }).join("") + '</div>' +
+        '<p>이 부등식을 <strong>m</strong>에 대해 정리하면 다음 중 어느 것이 될까요?</p>' +
+        '<div class="mcq" id="s6-mcq">' +
+          options.map(function (opt, i) {
+            return '<label class="mcq-option"><input type="radio" name="s6mcq" value="' + i + '"><span>' + opt.text + '</span></label>';
+          }).join("") +
+        '</div>' +
+        '<div class="feedback hidden" id="s6-mcq-feedback"></div>' +
+      '</div>';
+    container.appendChild(section);
+
+    document.querySelectorAll("#s6-deriv-level .toggle-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        state.s6DerivLevel = Number(btn.dataset.val);
+        saveState();
+        s6DerivRender();
+      });
+    });
+
+    document.querySelectorAll('#s6-mcq input[name="s6mcq"]').forEach(function (input) {
+      input.addEventListener("change", function () {
+        const idx = Number(input.value);
+        const feedback = document.getElementById("s6-mcq-feedback");
+        feedback.classList.remove("hidden", "correct", "incorrect");
+        if (options[idx].correct) {
+          feedback.classList.add("correct");
+          feedback.textContent = "정답입니다! 이 식이 신뢰도 " + level + "%의 모평균 신뢰구간 공식입니다.";
+        } else {
+          feedback.classList.add("incorrect");
+          feedback.textContent = "다시 생각해보세요. 부호 방향과 √n 위치를 확인해보세요.";
+        }
+        if (window.MathJax && window.MathJax.typesetPromise) {
+          window.MathJax.typesetPromise([feedback]);
+        }
+      });
+    });
+
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise([section]);
+    }
+  }
+
   // 임시 초기화 호출 (Task 13에서 정식 init()으로 교체 예정)
   loadState();
   initPopulation();
@@ -790,6 +876,7 @@
   s4Render();
   s5Render();
   s6FindRender();
+  s6DerivRender();
   goToStep(1);
   initNavEvents();
 
