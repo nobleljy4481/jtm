@@ -484,12 +484,161 @@
     });
   }
 
+  /* ===== Task 6: 4단계 — 구간 길이와 포함 정도 탐구 ===== */
+
+  function computeMarginInterval(sampleMean, marginMinutes) {
+    return { lower: sampleMean - marginMinutes, upper: sampleMean + marginMinutes, marginMinutes: marginMinutes };
+  }
+
+  function drawMarginBatchChart(canvas, batch, mu, revealMu) {
+    const ctx = canvas.getContext("2d");
+    const rowH = Math.max(4, Math.min(16, 220 / Math.max(batch.length, 1)));
+    const topPad = 26, bottomPad = 30, leftPad = 44, rightPad = 12;
+    canvas.height = Math.max(120, topPad + bottomPad + batch.length * rowH);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (batch.length === 0) return;
+
+    const lowers = batch.map(function (b) { return b.lower; });
+    const uppers = batch.map(function (b) { return b.upper; });
+    const min = Math.min.apply(null, lowers.concat([mu])) - 5;
+    const max = Math.max.apply(null, uppers.concat([mu])) + 5;
+    const chartW = canvas.width - leftPad - rightPad;
+    function xFor(v) { return leftPad + ((v - min) / (max - min)) * chartW; }
+
+    batch.forEach(function (b, i) {
+      const y = topPad + i * rowH + rowH / 2;
+      ctx.strokeStyle = b.contains ? "#16A34A" : "#DC2626";
+      ctx.lineWidth = Math.max(2, rowH - 3);
+      ctx.beginPath();
+      ctx.moveTo(xFor(b.lower), y);
+      ctx.lineTo(xFor(b.upper), y);
+      ctx.stroke();
+    });
+    ctx.lineWidth = 1;
+
+    const muX = xFor(mu);
+    ctx.strokeStyle = "#1E293B";
+    if (!revealMu) ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(muX, topPad - 12);
+    ctx.lineTo(muX, topPad + batch.length * rowH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#1E293B";
+    ctx.font = "11px Pretendard, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(revealMu ? ("모평균 " + mu) : "실제 모평균 (비공개)", muX, topPad - 16);
+    ctx.textAlign = "left";
+  }
+
+  function drawTrendChart(canvas, explored, xRange, yRange) {
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const keys = Object.keys(explored).map(Number).sort(function (a, b) { return a - b; });
+    const leftPad = 40, rightPad = 20, topPad = 12, bottomPad = 30;
+    const chartW = canvas.width - leftPad - rightPad, chartH = canvas.height - topPad - bottomPad;
+    function xFor(v) { return leftPad + ((v - xRange[0]) / (xRange[1] - xRange[0])) * chartW; }
+    function yFor(v) { return topPad + chartH - ((v - yRange[0]) / (yRange[1] - yRange[0])) * chartH; }
+
+    ctx.strokeStyle = "#94A3B8";
+    ctx.beginPath();
+    ctx.moveTo(leftPad, topPad + chartH);
+    ctx.lineTo(leftPad + chartW, topPad + chartH);
+    ctx.moveTo(leftPad, topPad);
+    ctx.lineTo(leftPad, topPad + chartH);
+    ctx.stroke();
+
+    if (keys.length > 1) {
+      ctx.strokeStyle = "#2563EB";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      keys.forEach(function (k, i) {
+        const x = xFor(k), y = yFor(explored[k]);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+    keys.forEach(function (k) {
+      ctx.beginPath();
+      ctx.arc(xFor(k), yFor(explored[k]), 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = "#2563EB";
+      ctx.fill();
+    });
+  }
+
+  function s4DrawSingle() {
+    const sample = sampleWithReplacement(state.population, 20, Math.random);
+    const sampleMean = mean(sample.map(function (s) { return s.minutes; }));
+    state.s4Single = { sampleMean: sampleMean };
+    saveState();
+    s4Render();
+  }
+
+  function s4RunBatch() {
+    const batch = [];
+    for (let i = 0; i < 30; i++) {
+      const sample = sampleWithReplacement(state.population, 20, Math.random);
+      const sampleMean = mean(sample.map(function (s) { return s.minutes; }));
+      const iv = computeMarginInterval(sampleMean, state.s4Margin);
+      iv.contains = containsMean(iv, state.mu);
+      batch.push(iv);
+    }
+    state.s4Batch = batch;
+    const containCount = batch.filter(function (b) { return b.contains; }).length;
+    state.s4Explored[state.s4Margin] = containCount / batch.length;
+    saveState();
+    s4Render();
+  }
+
+  function s4Render() {
+    const container = document.getElementById("step-4");
+    container.innerHTML =
+      '<h2>4. 구간 길이와 모평균 포함 정도 탐구</h2>' +
+      '<div class="card"><p>표본평균 ± 오차범위로 구간을 만들어봅시다. 오차범위를 바꾸면서, 만든 구간이 (아직 공개되지 않은) 실제 모평균을 포함하는 정도가 어떻게 달라지는지 관찰해보세요.</p></div>' +
+      '<div class="card controls-card">' +
+        '<div class="control-row"><label for="s4-margin">오차범위 (± <span id="s4-margin-val">' + state.s4Margin + '</span>분)</label>' +
+        '<input type="range" id="s4-margin" min="1" max="40" step="1" value="' + state.s4Margin + '"></div>' +
+        '<button class="btn-secondary" id="s4-draw">구간 1개 만들기</button>' +
+        '<button class="btn-primary" id="s4-run">같은 방법으로 30번 반복하기</button>' +
+      '</div>' +
+      '<div class="card"><canvas id="s4-single-canvas" width="600" height="110"></canvas>' +
+        '<p id="s4-single-summary" class="summary-text"></p></div>' +
+      '<div class="card"><canvas id="s4-batch-canvas" width="600" height="200"></canvas>' +
+        '<p id="s4-batch-summary" class="summary-text"></p></div>' +
+      '<div class="card reflect-card"><p>오차범위를 넓히거나 좁히면 포함 비율이 어떻게 바뀌나요? 아래는 여러 번 실험한 결과입니다.</p>' +
+        '<canvas id="s4-trend-canvas" width="600" height="90"></canvas></div>';
+
+    document.getElementById("s4-margin").addEventListener("input", function (e) {
+      state.s4Margin = Number(e.target.value);
+      document.getElementById("s4-margin-val").textContent = state.s4Margin;
+      saveState();
+    });
+    document.getElementById("s4-draw").addEventListener("click", s4DrawSingle);
+    document.getElementById("s4-run").addEventListener("click", s4RunBatch);
+
+    if (state.s4Single) {
+      const iv = computeMarginInterval(state.s4Single.sampleMean, state.s4Margin);
+      drawIntervalLine(document.getElementById("s4-single-canvas"), iv, state.mu, state.s4Single.sampleMean, false);
+      document.getElementById("s4-single-summary").textContent =
+        "표본평균 " + state.s4Single.sampleMean.toFixed(1) + "분 → 구간 [" + iv.lower.toFixed(1) + ", " + iv.upper.toFixed(1) + "]";
+    }
+    if (state.s4Batch.length > 0) {
+      drawMarginBatchChart(document.getElementById("s4-batch-canvas"), state.s4Batch, state.mu, false);
+      const containCount = state.s4Batch.filter(function (b) { return b.contains; }).length;
+      document.getElementById("s4-batch-summary").textContent =
+        "± " + state.s4Margin + "분 오차범위로 만든 " + state.s4Batch.length + "개 구간 중 " + containCount + "개가 실제 모평균을 포함했습니다.";
+    }
+    drawTrendChart(document.getElementById("s4-trend-canvas"), state.s4Explored, [1, 40], [0, 1]);
+  }
+
   // 임시 초기화 호출 (Task 13에서 정식 init()으로 교체 예정)
   loadState();
   initPopulation();
   s1Render();
   s2Render();
   s3Render();
+  s4Render();
   goToStep(1);
   initNavEvents();
 
