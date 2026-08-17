@@ -777,7 +777,13 @@
         '</div>' +
       '</div>';
 
-    container.appendChild(section);
+    // #s6-deriv-section이 존재하면 그 앞에, 없으면 마지막에 삽입
+    const derivSection = container.querySelector("#s6-deriv-section");
+    if (derivSection) {
+      container.insertBefore(section, derivSection);
+    } else {
+      container.appendChild(section);
+    }
 
     drawNormalCurveInteractive(document.getElementById("s6-curve-canvas"), state.s6Z, found);
 
