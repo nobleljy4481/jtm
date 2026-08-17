@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>모평균의 추정 — 인터랙티브 학습</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+window.MathJax = { tex: { inlineMath: [['$', '$']] } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
+</head>
+<body>
+
+<header class="site-header">
+  <h1>모평균의 추정</h1>
+  <ol class="progress-bar" id="progressBar">
+    <li data-step="1"><span class="dot">1</span><span class="label">탐구 상황</span></li>
+    <li data-step="2"><span class="dot">2</span><span class="label">점추정의 한계</span></li>
+    <li data-step="3"><span class="dot">3</span><span class="label">구간추정의 필요성</span></li>
+    <li data-step="4"><span class="dot">4</span><span class="label">구간과 포함정도</span></li>
+    <li data-step="5"><span class="dot">5</span><span class="label">신뢰도의 의미</span></li>
+    <li data-step="6"><span class="dot">6</span><span class="label">공식 유도</span></li>
+    <li data-step="7"><span class="dot">7</span><span class="label">표본 신뢰구간</span></li>
+    <li data-step="8"><span class="dot">8</span><span class="label">반복 시뮬레이션</span></li>
+    <li data-step="9"><span class="dot">9</span><span class="label">표본크기 영향</span></li>
+    <li data-step="10"><span class="dot">10</span><span class="label">적용하기</span></li>
+  </ol>
+</header>
+
+<main>
+  <section class="step" id="step-1" data-step="1"></section>
+  <section class="step" id="step-2" data-step="2"></section>
+  <section class="step" id="step-3" data-step="3"></section>
+  <section class="step" id="step-4" data-step="4"></section>
+  <section class="step" id="step-5" data-step="5"></section>
+  <section class="step" id="step-6" data-step="6"></section>
+  <section class="step" id="step-7" data-step="7"></section>
+  <section class="step" id="step-8" data-step="8"></section>
+  <section class="step" id="step-9" data-step="9"></section>
+  <section class="step" id="step-10" data-step="10"></section>
+</main>
+
+<footer class="nav-buttons">
+  <button class="btn-secondary" id="prevBtn">이전</button>
+  <span id="stepIndicator" class="step-indicator">1 / 10</span>
+  <button class="btn-primary" id="nextBtn">다음</button>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
