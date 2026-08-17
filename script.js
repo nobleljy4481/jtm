@@ -262,13 +262,13 @@
 
     function xForValue(v) { return originX + ((v - min) / (max - min)) * chartW; }
 
-    if (revealMu) {
-      ctx.strokeStyle = "#1E293B";
-      ctx.beginPath();
-      ctx.moveTo(xForValue(mu), originY);
-      ctx.lineTo(xForValue(mu), originY - chartH);
-      ctx.stroke();
-    }
+    ctx.strokeStyle = "#1E293B";
+    if (!revealMu) { ctx.setLineDash([5, 5]); }
+    ctx.beginPath();
+    ctx.moveTo(xForValue(mu), originY);
+    ctx.lineTo(xForValue(mu), originY - chartH);
+    ctx.stroke();
+    ctx.setLineDash([]);
 
     ctx.strokeStyle = "#94A3B8";
     ctx.beginPath();
@@ -283,7 +283,8 @@
     ctx.textAlign = "center";
     ctx.fillText(Math.round(min), xForValue(min), originY + 14);
     ctx.fillText(Math.round(max), xForValue(max), originY + 14);
-    if (revealMu) ctx.fillText(Math.round(mu), xForValue(mu), originY + 14);
+    const muLabel = revealMu ? String(Math.round(mu)) : "실제 모평균 위치 (비공개)";
+    ctx.fillText(muLabel, xForValue(mu), originY + 14);
     ctx.font = "12px Pretendard, sans-serif";
     ctx.fillText("사용시간 (분)", originX + chartW / 2, originY + 30);
 
