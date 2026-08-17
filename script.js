@@ -193,4 +193,155 @@
     console.log("selfTestStats passed");
   })();
 
+  /* ===== Task 3: 공용 Canvas 시각화 함수 ===== */
+
+  function drawDotPlot(canvas, population, highlightIds) {
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const values = population.map(function (p) { return p.minutes; });
+    const min = Math.min.apply(null, values), max = Math.max.apply(null, values);
+    const chartW = canvas.width - 60;
+    const originX = 30;
+    const bottomMargin = 34;
+    const highlightSet = new Set(highlightIds || []);
+    const colHeights = {};
+    const positions = [];
+
+    population.forEach(function (p) {
+      const x = Math.round(originX + ((p.minutes - min) / (max - min)) * chartW);
+      colHeights[x] = (colHeights[x] || 0) + 1;
+      const y = canvas.height - bottomMargin - colHeights[x] * 4;
+      ctx.beginPath();
+      ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = highlightSet.has(p.id) ? "#2563EB" : "#CBD5E1";
+      ctx.fill();
+      positions.push({ id: p.id, minutes: p.minutes, x: x, y: y });
+    });
+
+    ctx.strokeStyle = "#94A3B8";
+    ctx.beginPath();
+    ctx.moveTo(originX, canvas.height - bottomMargin + 6);
+    ctx.lineTo(originX + chartW, canvas.height - bottomMargin + 6);
+    ctx.stroke();
+
+    ctx.fillStyle = "#64748B";
+    ctx.font = "10px Pretendard, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText(Math.round(min) + "분", originX, canvas.height - bottomMargin + 18);
+    ctx.textAlign = "right";
+    ctx.fillText(Math.round(max) + "분", originX + chartW, canvas.height - bottomMargin + 18);
+    ctx.textAlign = "left";
+
+    return positions;
+  }
+
+  function drawHistogram(canvas, population, mu, sigma, revealMu) {
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const values = population.map(function (p) { return p.minutes; });
+    const min = Math.min.apply(null, values), max = Math.max.apply(null, values);
+    const binCount = 30;
+    const binWidth = (max - min) / binCount;
+    const bins = new Array(binCount).fill(0);
+    values.forEach(function (v) {
+      let idx = Math.floor((v - min) / binWidth);
+      if (idx >= binCount) idx = binCount - 1;
+      bins[idx]++;
+    });
+    const maxBin = Math.max.apply(null, bins);
+    const chartW = canvas.width - 76, chartH = canvas.height - 56;
+    const originX = 56, originY = canvas.height - 40;
+
+    ctx.fillStyle = "#2563EB";
+    bins.forEach(function (count, i) {
+      const barH = (count / maxBin) * chartH;
+      const x = originX + (i / binCount) * chartW;
+      const w = chartW / binCount - 2;
+      ctx.fillRect(x, originY - barH, w, barH);
+    });
+
+    function xForValue(v) { return originX + ((v - min) / (max - min)) * chartW; }
+
+    if (revealMu) {
+      ctx.strokeStyle = "#1E293B";
+      ctx.beginPath();
+      ctx.moveTo(xForValue(mu), originY);
+      ctx.lineTo(xForValue(mu), originY - chartH);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = "#94A3B8";
+    ctx.beginPath();
+    ctx.moveTo(originX, originY);
+    ctx.lineTo(originX + chartW, originY);
+    ctx.moveTo(originX, originY);
+    ctx.lineTo(originX, originY - chartH);
+    ctx.stroke();
+
+    ctx.fillStyle = "#64748B";
+    ctx.font = "10px Pretendard, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(Math.round(min), xForValue(min), originY + 14);
+    ctx.fillText(Math.round(max), xForValue(max), originY + 14);
+    if (revealMu) ctx.fillText(Math.round(mu), xForValue(mu), originY + 14);
+    ctx.font = "12px Pretendard, sans-serif";
+    ctx.fillText("사용시간 (분)", originX + chartW / 2, originY + 30);
+
+    ctx.save();
+    ctx.translate(16, originY - chartH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText("도수 (명)", 0, 0);
+    ctx.restore();
+    ctx.textAlign = "left";
+  }
+
+  function drawIntervalLine(canvas, interval, mu, sampleMean, revealMu) {
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const margin = 60;
+    const span = Math.max(interval.upper - interval.lower, 1) * 3;
+    const min = interval.lower - span, max = interval.upper + span;
+    const chartW = canvas.width - margin * 2;
+    function xFor(v) { return margin + ((v - min) / (max - min)) * chartW; }
+
+    const contains = containsMean(interval, mu);
+    ctx.strokeStyle = contains ? "#16A34A" : "#DC2626";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(xFor(interval.lower), 60);
+    ctx.lineTo(xFor(interval.upper), 60);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+
+    if (typeof sampleMean === "number") {
+      ctx.strokeStyle = "#FACC15";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(xFor(sampleMean), 48);
+      ctx.lineTo(xFor(sampleMean), 72);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+      ctx.fillStyle = "#92400E";
+      ctx.font = "11px Pretendard, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("표본평균", xFor(sampleMean), 84);
+      ctx.textAlign = "left";
+    }
+
+    ctx.strokeStyle = "#1E293B";
+    if (!revealMu) { ctx.setLineDash([5, 5]); }
+    ctx.beginPath();
+    ctx.moveTo(xFor(mu), 20);
+    ctx.lineTo(xFor(mu), 100);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = "#1E293B";
+    ctx.font = "bold 14px Pretendard, sans-serif";
+    ctx.textAlign = "center";
+    const label = revealMu ? ("모평균 " + mu) : "실제 모평균 위치 (비공개)";
+    ctx.fillText(label, xFor(mu), 14);
+    ctx.textAlign = "left";
+  }
+
 })();
