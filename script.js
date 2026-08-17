@@ -772,12 +772,14 @@
         state.s6Target = Number(btn.dataset.val);
         saveState();
         s6FindRender();
+        s6DerivRender();
       });
     });
     document.getElementById("s6-z").addEventListener("input", function (e) {
       state.s6Z = Number(e.target.value);
       saveState();
       s6FindRender();
+      s6DerivRender();
     });
   }
 
