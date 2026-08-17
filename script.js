@@ -345,4 +345,54 @@
     ctx.textAlign = "left";
   }
 
+  /* ===== Task 4: 1단계 — 현실적 탐구 상황 ===== */
+
+  function initPopulation() {
+    if (state.population.length === 0) {
+      state.population = generatePopulation(state.mu, state.sigma, state.populationSize, state.seed);
+    }
+  }
+
+  function s1Render() {
+    const container = document.getElementById("step-1");
+    const previewSample = state.population.slice(0, 5);
+    container.innerHTML =
+      '<h2>1. 탐구 상황</h2>' +
+      '<div class="card">' +
+        '<p>우리 학교 고등학생 1,000명의 <strong>하루 스마트폰 사용시간(분)</strong>이 궁금합니다. ' +
+        '하지만 1,000명 전체를 다 조사하는 건 시간과 비용이 많이 듭니다.</p>' +
+        '<p>그래서 담당 선생님은 <strong>학생 몇 명만 무작위로 뽑아</strong> 사용시간을 먼저 살펴보기로 했습니다.</p>' +
+      '</div>' +
+      '<div class="card">' +
+        '<p><strong>미리 뽑아본 학생 ' + previewSample.length + '명</strong></p>' +
+        '<table><tr><th>ID</th><th>사용시간(분)</th></tr>' +
+        previewSample.map(function (s) { return "<tr><td>" + s.id + "</td><td>" + s.minutes + "</td></tr>"; }).join("") +
+        '</table>' +
+      '</div>' +
+      '<div class="card predict-card">' +
+        '<label for="s1-predict">이 몇 명의 자료를 보고, <strong>학교 전체 학생 1,000명의 평균 사용시간</strong>은 몇 분쯤일 것 같나요?</label>' +
+        '<div class="predict-row" style="display:flex;align-items:center;gap:8px;margin:10px 0;">' +
+          '<input type="number" id="s1-predict" min="0" max="600" step="1" placeholder="예: 200">' +
+          '<span>분</span>' +
+        '</div>' +
+        '<p class="hint">정답을 맞히는 활동이 아닙니다. 여러분의 예상을 적어두면, 뒤에서 실제 값을 확인할 때 비교해볼 수 있어요.</p>' +
+      '</div>';
+
+    const predictInput = document.getElementById("s1-predict");
+    if (state.predictMean !== null && state.predictMean !== undefined) {
+      predictInput.value = state.predictMean;
+    }
+    predictInput.addEventListener("input", function (e) {
+      state.predictMean = e.target.value === "" ? null : Number(e.target.value);
+      saveState();
+    });
+  }
+
+  // 임시 초기화 호출 (Task 13에서 정식 init()으로 교체 예정)
+  loadState();
+  initPopulation();
+  s1Render();
+  goToStep(1);
+  initNavEvents();
+
 })();
