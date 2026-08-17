@@ -1,0 +1,10 @@
+# Playwright test scaffolding and node dependencies
+# These are implementer-side verification tools and dependency management files,
+# not part of this project's deliverable (three-file teaching resource: index.html, style.css, script.js)
+
+node_modules/
+package.json
+package-lock.json
+playwright.config.js
+test-results/
+test-task*.js
