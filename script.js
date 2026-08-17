@@ -632,6 +632,92 @@
     drawTrendChart(document.getElementById("s4-trend-canvas"), state.s4Explored, [1, 40], [0, 1]);
   }
 
+  /* ===== Task 7: 표준정규분포 넓이 계산 · 곡선 그리기 ===== */
+
+  function normalPDF(x) {
+    return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+  }
+
+  // Simpson's rule로 -z ~ z 구간의 넓이(가운데 확률)를 근사 계산
+  function normalAreaBetween(z) {
+    if (z <= 0) return 0;
+    const n = 200; // 짝수
+    const a = -z, b = z;
+    const h = (b - a) / n;
+    let sum = normalPDF(a) + normalPDF(b);
+    for (let i = 1; i < n; i++) {
+      const x = a + i * h;
+      sum += (i % 2 === 0 ? 2 : 4) * normalPDF(x);
+    }
+    return (h / 3) * sum;
+  }
+
+  function drawNormalCurveInteractive(canvas, z, found) {
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const originX = canvas.width / 2, originY = canvas.height - 46;
+    const scaleX = (canvas.width / 2 - 30) / 4;
+    const scaleY = (canvas.height - 70) / 0.4;
+
+    function xToPixel(x) { return originX + x * scaleX; }
+    function yToPixel(y) { return originY - y * scaleY; }
+
+    ctx.strokeStyle = "#1E293B";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let x = -4; x <= 4; x += 0.05) {
+      const px = xToPixel(x), py = yToPixel(normalPDF(x));
+      if (x === -4) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.lineWidth = 1;
+
+    if (z > 0) {
+      ctx.fillStyle = found ? "rgba(22, 163, 74, 0.35)" : "rgba(37, 99, 235, 0.3)";
+      ctx.beginPath();
+      ctx.moveTo(xToPixel(-z), originY);
+      for (let x = -z; x <= z; x += 0.05) {
+        ctx.lineTo(xToPixel(x), yToPixel(normalPDF(x)));
+      }
+      ctx.lineTo(xToPixel(z), originY);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = "#1E293B";
+      ctx.setLineDash([4, 4]);
+      [-z, z].forEach(function (b) {
+        ctx.beginPath();
+        ctx.moveTo(xToPixel(b), originY);
+        ctx.lineTo(xToPixel(b), yToPixel(normalPDF(b)));
+        ctx.stroke();
+      });
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = "#1E293B";
+      ctx.font = "bold 13px Pretendard, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("-" + z.toFixed(2), xToPixel(-z), originY + 20);
+      ctx.fillText(z.toFixed(2), xToPixel(z), originY + 20);
+    }
+
+    ctx.strokeStyle = "#94A3B8";
+    ctx.beginPath();
+    ctx.moveTo(xToPixel(-4), originY);
+    ctx.lineTo(xToPixel(4) + 10, originY);
+    ctx.moveTo(xToPixel(4) + 10, originY);
+    ctx.lineTo(xToPixel(4) + 2, originY - 4);
+    ctx.moveTo(xToPixel(4) + 10, originY);
+    ctx.lineTo(xToPixel(4) + 2, originY + 4);
+    ctx.stroke();
+
+    ctx.fillStyle = "#1E293B";
+    ctx.font = "bold 14px Pretendard, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("0", xToPixel(0), originY + 20);
+    ctx.textAlign = "left";
+    ctx.fillText("Z", xToPixel(4) + 16, originY + 5);
+  }
+
   // 임시 초기화 호출 (Task 13에서 정식 init()으로 교체 예정)
   loadState();
   initPopulation();
