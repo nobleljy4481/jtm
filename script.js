@@ -734,6 +734,16 @@
 
   function s6FindRender() {
     const container = document.getElementById("step-6");
+
+    // 헤더와 소개 콘텐츠는 처음 한 번만 설정
+    if (!container.querySelector("#s6-find-section")) {
+      container.innerHTML =
+        '<h2>6. 표준정규분포를 이용한 신뢰구간 공식 유도</h2>' +
+        '<div class="card">' +
+          '<p>아래 슬라이더로 표준정규분포의 가운데 영역을 조절하면서, 그 영역의 넓이가 0.95, 0.99가 되는 순간의 z값을 찾아봅시다.</p>' +
+        '</div>';
+    }
+
     const targetArea = state.s6Target / 100;
     const currentArea = normalAreaBetween(state.s6Z);
     const found = Math.abs(currentArea - targetArea) < TARGET_TOLERANCE;
@@ -743,11 +753,13 @@
       if (state.s6Target === 99) state.s6Found99 = true;
     }
 
-    container.innerHTML =
-      '<h2>6. 표준정규분포를 이용한 신뢰구간 공식 유도</h2>' +
-      '<div class="card">' +
-        '<p>아래 슬라이더로 표준정규분포의 가운데 영역을 조절하면서, 그 영역의 넓이가 0.95, 0.99가 되는 순간의 z값을 찾아봅시다.</p>' +
-      '</div>' +
+    // 자체 범위인 #s6-find-section만 관리
+    const existing = container.querySelector("#s6-find-section");
+    if (existing) existing.remove();
+
+    const section = document.createElement("div");
+    section.id = "s6-find-section";
+    section.innerHTML =
       '<div class="card controls-card">' +
         '<div class="control-row toggle-row"><span>목표</span>' +
           '<div class="toggle-group" id="s6-target">' +
@@ -765,6 +777,8 @@
         '</div>' +
       '</div>';
 
+    container.appendChild(section);
+
     drawNormalCurveInteractive(document.getElementById("s6-curve-canvas"), state.s6Z, found);
 
     document.querySelectorAll("#s6-target .toggle-btn").forEach(function (btn) {
@@ -772,14 +786,12 @@
         state.s6Target = Number(btn.dataset.val);
         saveState();
         s6FindRender();
-        s6DerivRender();
       });
     });
     document.getElementById("s6-z").addEventListener("input", function (e) {
       state.s6Z = Number(e.target.value);
       saveState();
       s6FindRender();
-      s6DerivRender();
     });
   }
 
