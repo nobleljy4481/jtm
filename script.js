@@ -105,4 +105,92 @@
     console.log("selfTestNavigation passed");
   })();
 
+  /* ===== Task 2: 핵심 통계 함수 (withjm 이식) ===== */
+
+  function mulberry32(seed) {
+    return function () {
+      seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function createRng(seed) {
+    if (seed === null || seed === undefined || seed === "") return Math.random;
+    return mulberry32(Number(seed));
+  }
+
+  function randomNormal(rng, meanValue, sd) {
+    let u1 = 0;
+    while (u1 === 0) u1 = rng();
+    const u2 = rng();
+    const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+    return meanValue + sd * z0;
+  }
+
+  function generatePopulation(mu, sigma, size, seed) {
+    const rng = createRng(seed);
+    const population = [];
+    for (let i = 0; i < size; i++) {
+      const minutes = Math.round(randomNormal(rng, mu, sigma));
+      population.push({ id: "S" + String(i + 1).padStart(4, "0"), minutes: minutes });
+    }
+    return population;
+  }
+
+  function mean(values) {
+    return values.reduce(function (a, b) { return a + b; }, 0) / values.length;
+  }
+
+  function stdDev(values) {
+    const m = mean(values);
+    const variance = values.reduce(function (a, b) { return a + Math.pow(b - m, 2); }, 0) / values.length;
+    return Math.sqrt(variance);
+  }
+
+  function sampleWithReplacement(population, n, rng) {
+    rng = rng || Math.random;
+    const sample = [];
+    for (let i = 0; i < n; i++) {
+      const idx = Math.floor(rng() * population.length);
+      sample.push(population[idx]);
+    }
+    return sample;
+  }
+
+  const Z_VALUES = { 95: 1.96, 99: 2.58 };
+
+  function marginOfError(sigma, n, confidenceLevel) {
+    return Z_VALUES[confidenceLevel] * (sigma / Math.sqrt(n));
+  }
+
+  function confidenceInterval(sampleMean, sigma, n, confidenceLevel) {
+    const me = marginOfError(sigma, n, confidenceLevel);
+    return { lower: sampleMean - me, upper: sampleMean + me, marginOfError: me, z: Z_VALUES[confidenceLevel] };
+  }
+
+  function containsMean(interval, mu) {
+    return mu >= interval.lower && mu <= interval.upper;
+  }
+
+  (function selfTestStats() {
+    const pop = generatePopulation(240, 40, 1000, 42);
+    console.assert(pop.length === 1000, "population size should be 1000");
+    console.assert(Math.abs(mean(pop.map(function (p) { return p.minutes; })) - 240) < 5, "population mean near 240");
+    console.assert(Z_VALUES[95] === 1.96 && Z_VALUES[99] === 2.58, "z values correct");
+
+    const me = marginOfError(40, 25, 95);
+    console.assert(Math.abs(me - (1.96 * 40 / 5)) < 1e-9, "margin of error correct: " + me);
+
+    const ci = confidenceInterval(250, 40, 25, 95);
+    console.assert(Math.abs(ci.lower - (250 - me)) < 1e-9, "CI lower correct");
+    console.assert(containsMean(ci, 240) === (240 >= ci.lower && 240 <= ci.upper), "containsMean matches manual check");
+
+    const sample = sampleWithReplacement(pop, 10, createRng(1));
+    console.assert(sample.length === 10, "sample size 10");
+
+    console.log("selfTestStats passed");
+  })();
+
 })();
