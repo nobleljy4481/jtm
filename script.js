@@ -732,6 +732,42 @@
 
   const TARGET_TOLERANCE = 0.003;
 
+  // z 슬라이더 등 "텍스트/캔버스/찾음 상태"만 바뀌는 경우를 위한 경량 갱신 함수.
+  // #s6-find-section의 DOM 구조(특히 <input id="s6-z">)는 건드리지 않아야
+  // 드래그 중 pointer capture가 끊기지 않는다.
+  function s6UpdateFindDisplay() {
+    const targetArea = state.s6Target / 100;
+    const currentArea = normalAreaBetween(state.s6Z);
+    const found = Math.abs(currentArea - targetArea) < TARGET_TOLERANCE;
+
+    if (found) {
+      if (state.s6Target === 95) state.s6Found95 = true;
+      if (state.s6Target === 99) state.s6Found99 = true;
+    }
+
+    document.getElementById("s6-z-val").textContent = state.s6Z.toFixed(2);
+    drawNormalCurveInteractive(document.getElementById("s6-curve-canvas"), state.s6Z, found);
+
+    const readout = document.getElementById("s6-area-readout");
+    readout.textContent = "현재 가운데 영역: " + currentArea.toFixed(3) + " (목표: " + targetArea.toFixed(2) + ")";
+    readout.classList.toggle("found", found);
+
+    const foundBox = document.getElementById("s6-found-box");
+    foundBox.classList.toggle("correct", found);
+    foundBox.classList.toggle("hidden", !found);
+    foundBox.textContent = found
+      ? ("찾았습니다! z ≈ " + state.s6Z.toFixed(2) + "일 때 가운데 영역이 " + targetArea.toFixed(2) + "가 됩니다. 이 값이 " + state.s6Target + "% 신뢰도의 신뢰구간에 쓰이는 값입니다.")
+      : "";
+
+    document.querySelectorAll("#s6-target .toggle-btn").forEach(function (btn) {
+      const val = Number(btn.dataset.val);
+      const isFound = val === 95 ? state.s6Found95 : state.s6Found99;
+      btn.textContent = (val === 95 ? "95% 찾기" : "99% 찾기") + (isFound ? " ✓" : "");
+    });
+
+    return found;
+  }
+
   function s6FindRender() {
     const container = document.getElementById("step-6");
 
@@ -742,15 +778,6 @@
         '<div class="card">' +
           '<p>아래 슬라이더로 표준정규분포의 가운데 영역을 조절하면서, 그 영역의 넓이가 0.95, 0.99가 되는 순간의 z값을 찾아봅시다.</p>' +
         '</div>';
-    }
-
-    const targetArea = state.s6Target / 100;
-    const currentArea = normalAreaBetween(state.s6Z);
-    const found = Math.abs(currentArea - targetArea) < TARGET_TOLERANCE;
-
-    if (found) {
-      if (state.s6Target === 95) state.s6Found95 = true;
-      if (state.s6Target === 99) state.s6Found99 = true;
     }
 
     // 자체 범위인 #s6-find-section만 관리
@@ -771,10 +798,8 @@
       '</div>' +
       '<div class="card">' +
         '<canvas id="s6-curve-canvas" width="600" height="260"></canvas>' +
-        '<p class="summary-text' + (found ? ' found' : '') + '" id="s6-area-readout">현재 가운데 영역: ' + currentArea.toFixed(3) + ' (목표: ' + targetArea.toFixed(2) + ')</p>' +
-        '<div class="feedback' + (found ? " correct" : " hidden") + '" id="s6-found-box">' +
-          (found ? ("찾았습니다! z ≈ " + state.s6Z.toFixed(2) + "일 때 가운데 영역이 " + targetArea.toFixed(2) + "가 됩니다. 이 값이 " + state.s6Target + "% 신뢰도의 신뢰구간에 쓰이는 값입니다.") : "") +
-        '</div>' +
+        '<p class="summary-text" id="s6-area-readout"></p>' +
+        '<div class="feedback hidden" id="s6-found-box"></div>' +
       '</div>';
 
     // #s6-deriv-section이 존재하면 그 앞에, 없으면 마지막에 삽입
@@ -785,7 +810,7 @@
       container.appendChild(section);
     }
 
-    drawNormalCurveInteractive(document.getElementById("s6-curve-canvas"), state.s6Z, found);
+    s6UpdateFindDisplay();
 
     document.querySelectorAll("#s6-target .toggle-btn").forEach(function (btn) {
       btn.addEventListener("click", function () {
@@ -797,7 +822,7 @@
     document.getElementById("s6-z").addEventListener("input", function (e) {
       state.s6Z = Number(e.target.value);
       saveState();
-      s6FindRender();
+      s6UpdateFindDisplay();
     });
   }
 
@@ -1238,14 +1263,25 @@
 
   /* ===== Task 12: 9단계 — 표본크기의 영향 ===== */
 
-  function s9Render() {
-    const container = document.getElementById("step-9");
-    const n = state.sampleSize;
+  // n 슬라이더 드래그 중 호출되는 경량 갱신 함수. #step-9의 DOM 구조(특히
+  // <input id="s9-n">)는 건드리지 않아야 드래그 중 pointer capture가 끊기지 않는다.
+  function s9UpdateDisplay(n) {
     const sample = sampleWithReplacement(state.population, n, Math.random);
     const sampleMean = mean(sample.map(function (s) { return s.minutes; }));
     const ci = confidenceInterval(sampleMean, state.sigma, n, 95);
     state.s9Explored[n] = ci.upper - ci.lower;
     saveState();
+
+    document.getElementById("s9-n-val").textContent = n;
+    drawIntervalLine(document.getElementById("s9-interval-canvas"), ci, state.mu, sampleMean, state.meanRevealed);
+    document.getElementById("s9-summary").textContent =
+      "n = " + n + "일 때, 95% 신뢰구간은 [" + ci.lower.toFixed(1) + ", " + ci.upper.toFixed(1) + "]이며 폭은 " + (ci.upper - ci.lower).toFixed(1) + "입니다.";
+    drawTrendChart(document.getElementById("s9-trend-canvas"), state.s9Explored, [10, 200], [0, 60]);
+  }
+
+  function s9Render() {
+    const container = document.getElementById("step-9");
+    const n = state.sampleSize;
 
     container.innerHTML =
       '<h2>9. 표본크기의 영향</h2>' +
@@ -1255,17 +1291,15 @@
         '<input type="range" id="s9-n" min="10" max="200" step="5" value="' + n + '"></div>' +
       '</div>' +
       '<div class="card"><canvas id="s9-interval-canvas" width="600" height="120"></canvas>' +
-        '<p class="summary-text">n = ' + n + '일 때, 95% 신뢰구간은 [' + ci.lower.toFixed(1) + ', ' + ci.upper.toFixed(1) + ']이며 폭은 ' + (ci.upper - ci.lower).toFixed(1) + '입니다.</p></div>' +
+        '<p id="s9-summary" class="summary-text"></p></div>' +
       '<div class="card"><canvas id="s9-trend-canvas" width="600" height="90"></canvas>' +
         '<p class="hint">가로축: 표본크기 n (10~200) · 세로축: 신뢰구간 폭 · 슬라이더를 움직여 여러 n을 탐색해보세요.</p></div>';
 
-    drawIntervalLine(document.getElementById("s9-interval-canvas"), ci, state.mu, sampleMean, state.meanRevealed);
-    drawTrendChart(document.getElementById("s9-trend-canvas"), state.s9Explored, [10, 200], [0, 60]);
+    s9UpdateDisplay(n);
 
     document.getElementById("s9-n").addEventListener("input", function (e) {
       state.sampleSize = Number(e.target.value);
-      saveState();
-      s9Render();
+      s9UpdateDisplay(state.sampleSize);
     });
   }
 
