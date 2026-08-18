@@ -1229,6 +1229,39 @@
     s8RenderResults(false);
   }
 
+  /* ===== Task 12: 9단계 — 표본크기의 영향 ===== */
+
+  function s9Render() {
+    const container = document.getElementById("step-9");
+    const n = state.sampleSize;
+    const sample = sampleWithReplacement(state.population, n, Math.random);
+    const sampleMean = mean(sample.map(function (s) { return s.minutes; }));
+    const ci = confidenceInterval(sampleMean, state.sigma, n, 95);
+    state.s9Explored[n] = ci.upper - ci.lower;
+    saveState();
+
+    container.innerHTML =
+      '<h2>9. 표본크기의 영향</h2>' +
+      '<div class="card"><p>신뢰도(95%)는 고정하고, 표본크기(n)만 바꿔가며 신뢰구간의 폭이 어떻게 달라지는지 슬라이더로 확인해보세요.</p></div>' +
+      '<div class="card controls-card">' +
+        '<div class="control-row"><label for="s9-n">표본크기 (n = <span id="s9-n-val">' + n + '</span>명)</label>' +
+        '<input type="range" id="s9-n" min="10" max="200" step="5" value="' + n + '"></div>' +
+      '</div>' +
+      '<div class="card"><canvas id="s9-interval-canvas" width="600" height="120"></canvas>' +
+        '<p class="summary-text">n = ' + n + '일 때, 95% 신뢰구간은 [' + ci.lower.toFixed(1) + ', ' + ci.upper.toFixed(1) + ']이며 폭은 ' + (ci.upper - ci.lower).toFixed(1) + '입니다.</p></div>' +
+      '<div class="card"><canvas id="s9-trend-canvas" width="600" height="90"></canvas>' +
+        '<p class="hint">가로축: 표본크기 n (10~200) · 세로축: 신뢰구간 폭 · 슬라이더를 움직여 여러 n을 탐색해보세요.</p></div>';
+
+    drawIntervalLine(document.getElementById("s9-interval-canvas"), ci, state.mu, sampleMean, state.meanRevealed);
+    drawTrendChart(document.getElementById("s9-trend-canvas"), state.s9Explored, [10, 200], [0, 60]);
+
+    document.getElementById("s9-n").addEventListener("input", function (e) {
+      state.sampleSize = Number(e.target.value);
+      saveState();
+      s9Render();
+    });
+  }
+
   // 임시 초기화 호출 (Task 13에서 정식 init()으로 교체 예정)
   loadState();
   initPopulation();
@@ -1240,6 +1273,7 @@
   s6FindRender();
   s6DerivRender();
   s7Render();
+  s9Render();
   goToStep(1);
   initNavEvents();
 
