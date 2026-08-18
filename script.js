@@ -1382,6 +1382,9 @@
           // 8단계에서 모평균이 공개된 뒤 7단계로 되돌아오면, 이미 그려둔 신뢰구간 캔버스가
           // 공개 이전 상태(점선·"비공개")로 굳어있으므로 다시 그려 최신 상태를 반영한다.
           if (document.getElementById("step-7").classList.contains("active")) s7Render();
+          // 8단계에서 모평균이 공개된 뒤 9단계로 되돌아오면, 이미 그려둔 구간 캔버스가
+          // 공개 이전 상태로 굳어있으므로 다시 그려 최신 상태를 반영한다.
+          if (document.getElementById("step-9").classList.contains("active")) s9Render();
         }, 0);
       });
     });
