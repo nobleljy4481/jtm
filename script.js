@@ -1262,19 +1262,85 @@
     });
   }
 
-  // 임시 초기화 호출 (Task 13에서 정식 init()으로 교체 예정)
-  loadState();
-  initPopulation();
-  s1Render();
-  s2Render();
-  s3Render();
-  s4Render();
-  s5Render();
-  s6FindRender();
-  s6DerivRender();
-  s7Render();
-  s9Render();
-  goToStep(1);
-  initNavEvents();
+  /* ===== Task 13: 10단계 — 새로운 상황에 적용 · 전체 통합 ===== */
 
+  const S10_SAMPLE_SIZE = 40;
+  const S10_SAMPLE_MEAN = 42; // 1학년 통학시간(분) 예시 표본평균 — 고정값으로 제시
+  const S10_SIGMA = 12;
+
+  function s10Render() {
+    const container = document.getElementById("step-10");
+    container.innerHTML =
+      '<h2>10. 새로운 상황에 적용</h2>' +
+      '<div class="card">' +
+        '<p>이번엔 같은 학교 1학년 학생들의 <strong>평균 통학시간(분)</strong>이 궁금합니다. 1학년 300명 중 ' + S10_SAMPLE_SIZE + '명을 무작위로 뽑아 조사했더니 평균 통학시간이 <strong>' + S10_SAMPLE_MEAN + '분</strong>으로 나왔습니다. (모표준편차는 과거 자료를 참고해 ' + S10_SIGMA + '분으로 알려져 있다고 가정합니다.)</p>' +
+      '</div>' +
+      '<div class="card controls-card">' +
+        '<button class="btn-primary" id="s10-calc">신뢰구간 계산하기</button>' +
+      '</div>' +
+      '<div class="card"><div id="s10-result"></div></div>' +
+      '<div class="card">' +
+        '<label for="s10-text">계산된 신뢰구간을 바탕으로, 학교가 무엇을 결정할 수 있을지(예: 스쿨버스 배차 시간, 지각 방지 대책) 서술해보세요.</label>' +
+        '<textarea id="s10-text" rows="5" placeholder="예: ..."></textarea>' +
+      '</div>';
+
+    const resultEl = document.getElementById("s10-result");
+    if (state.s10Calculated) {
+      const ci = confidenceInterval(S10_SAMPLE_MEAN, S10_SIGMA, S10_SAMPLE_SIZE, 95);
+      resultEl.innerHTML = "95% 신뢰구간: [" + ci.lower.toFixed(2) + ", " + ci.upper.toFixed(2) + "]";
+    } else {
+      resultEl.innerHTML = '<p class="hint">"신뢰구간 계산하기" 버튼을 눌러보세요.</p>';
+    }
+
+    document.getElementById("s10-calc").addEventListener("click", function () {
+      state.s10Calculated = true;
+      saveState();
+      s10Render();
+    });
+    const textarea = document.getElementById("s10-text");
+    textarea.value = state.s10Text || "";
+    textarea.addEventListener("input", function (e) {
+      state.s10Text = e.target.value;
+      saveState();
+    });
+  }
+
+  function initAllSteps() {
+    s1Render();
+    s2Render();
+    s3Render();
+    s4Render();
+    s5Render();
+    s6FindRender();
+    s6DerivRender();
+    s7Render();
+    s9Render();
+    s10Render();
+    // s8Render()는 8단계 진입(goToStep) 시점에 최초 1회 호출 — 모평균 공개 연출이 여기서 트리거되므로 미리 그리지 않음
+  }
+
+  function init() {
+    loadState();
+    initPopulation();
+    initNavEvents();
+    initAllSteps();
+    subscribe(function () {
+      if (state.currentStep === 8 || document.getElementById("step-8").classList.contains("active")) {
+        s8Render();
+      }
+    });
+    document.querySelectorAll("#progressBar li, #nextBtn, #prevBtn").forEach(function (el) {
+      el.addEventListener("click", function () {
+        setTimeout(function () {
+          if (document.getElementById("step-8").classList.contains("active")) s8Render();
+          // 8단계에서 모평균이 공개된 뒤 7단계로 되돌아오면, 이미 그려둔 신뢰구간 캔버스가
+          // 공개 이전 상태(점선·"비공개")로 굳어있으므로 다시 그려 최신 상태를 반영한다.
+          if (document.getElementById("step-7").classList.contains("active")) s7Render();
+        }, 0);
+      });
+    });
+    goToStep(state.currentStep);
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
 })();
