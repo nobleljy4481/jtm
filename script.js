@@ -94,6 +94,11 @@
     document.querySelectorAll("#progressBar li").forEach(function (li) {
       li.addEventListener("click", function () { goToStep(Number(li.dataset.step)); });
     });
+    document.getElementById("resetBtn").addEventListener("click", function () {
+      if (!confirm("처음부터 다시 시작하시겠습니까? 지금까지의 진행 상황이 모두 사라집니다.")) return;
+      localStorage.removeItem(STORAGE_KEY);
+      location.reload();
+    });
   }
 
   (function selfTestNavigation() {
@@ -740,9 +745,16 @@
     const currentArea = normalAreaBetween(state.s6Z);
     const found = Math.abs(currentArea - targetArea) < TARGET_TOLERANCE;
 
+    const wasFound = state.s6Target === 95 ? state.s6Found95 : state.s6Found99;
     if (found) {
       if (state.s6Target === 95) state.s6Found95 = true;
       if (state.s6Target === 99) state.s6Found99 = true;
+    }
+    // 방금 이 목표값을 처음 찾았고, 부등식 변형 카드가 같은 신뢰도 수준을 보고 있다면
+    // 카드가 잠금 해제된 상태로 즉시 다시 그려지도록 한다. (#s6-find-section의 DOM은
+    // 이 함수에서 건드리지 않으므로 슬라이더 드래그 중 pointer capture는 영향받지 않는다.)
+    if (found && !wasFound && state.s6DerivLevel === state.s6Target) {
+      s6DerivRender();
     }
 
     document.getElementById("s6-z-val").textContent = state.s6Z.toFixed(2);
@@ -857,19 +869,44 @@
     if (existing) existing.remove();
 
     const level = state.s6DerivLevel;
-    const lines = s6DerivLines(level);
-    const options = s6McqOptions(level);
+    const found = level === 95 ? state.s6Found95 : state.s6Found99;
 
     const section = document.createElement("div");
     section.id = "s6-deriv-section";
+
+    const toggleHtml =
+      '<div class="control-row toggle-row"><span>신뢰도</span>' +
+        '<div class="toggle-group" id="s6-deriv-level">' +
+          '<button class="toggle-btn' + (level === 95 ? " active" : "") + '" data-val="95">95%</button>' +
+          '<button class="toggle-btn' + (level === 99 ? " active" : "") + '" data-val="99">99%</button>' +
+        '</div></div>';
+
+    if (!found) {
+      section.innerHTML =
+        '<div class="card">' +
+          '<h3>부등식 변형 — 방금 찾은 z값으로 신뢰구간 공식 유도하기</h3>' +
+          toggleHtml +
+          '<p class="summary-text">먼저 위에서 슬라이더로 z값을 찾아보세요. z를 찾으면 이 카드에 부등식 유도 과정이 나타납니다.</p>' +
+        '</div>';
+      container.appendChild(section);
+
+      document.querySelectorAll("#s6-deriv-level .toggle-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          state.s6DerivLevel = Number(btn.dataset.val);
+          saveState();
+          s6DerivRender();
+        });
+      });
+      return;
+    }
+
+    const lines = s6DerivLines(level);
+    const options = s6McqOptions(level);
+
     section.innerHTML =
       '<div class="card">' +
         '<h3>부등식 변형 — 방금 찾은 z값으로 신뢰구간 공식 유도하기</h3>' +
-        '<div class="control-row toggle-row"><span>신뢰도</span>' +
-          '<div class="toggle-group" id="s6-deriv-level">' +
-            '<button class="toggle-btn' + (level === 95 ? " active" : "") + '" data-val="95">95%</button>' +
-            '<button class="toggle-btn' + (level === 99 ? " active" : "") + '" data-val="99">99%</button>' +
-          '</div></div>' +
+        toggleHtml +
         '<div id="s6-deriv-lines">' + lines.map(function (l) { return "<p>" + l + "</p>"; }).join("") + '</div>' +
         '<p>이 부등식을 <strong>m</strong>에 대해 정리하면 다음 중 어느 것이 될까요?</p>' +
         '<div class="mcq" id="s6-mcq">' +

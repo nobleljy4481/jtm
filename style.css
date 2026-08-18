@@ -31,7 +31,8 @@ body {
   padding: 20px 16px 12px;
   text-align: center;
 }
-.site-header h1 { margin: 0 0 16px; font-size: 1.5rem; }
+.site-header h1 { margin: 0 0 10px; font-size: 1.5rem; }
+.site-header #resetBtn { margin: 0 0 16px; }
 
 .progress-bar {
   list-style: none;
