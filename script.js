@@ -44,6 +44,12 @@
       s9Explored: {},
 
       s10Text: "",
+      s10JustifyDecision: "",
+      s10JustifyReason: "",
+      s10GeneralizationInput: "",
+      s10GeneralizationRevealed: false,
+
+      discoveries: [],
     };
   }
 
@@ -68,6 +74,79 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (e) { /* localStorage 사용 불가 시 조용히 무시 */ }
+    checkDiscoveries();
+  }
+
+  /* ===== 개념기반 교육과정 요소: 탐구 질문 · 발견 누적 · 일반화 =====
+     "우리가 지금까지 발견한 것" 패널은 학생이 어느 단계에 있든 늘 보이며,
+     활동을 통해 실제로 확인한 관계만 하나씩 누적된다(되돌아가도 사라지지 않음). */
+
+  const DISCOVERY_DEFINITIONS = [
+    {
+      id: "d1",
+      text: "표본에서 얻은 평균은 뽑을 때마다 달라지며, 모평균과 항상 같지는 않다.",
+      condition: function (s) { return s.s2History.length > 0; },
+    },
+    {
+      id: "d2",
+      text: "그래서 모평균은 하나의 값이 아니라 일정한 범위(구간)로 추정하는 것이 더 안정적인 방법이다.",
+      condition: function (s) { return s.currentStep >= 3; },
+    },
+    {
+      id: "d3",
+      text: "구간을 넓히면 모평균을 포함할 가능성은 높아지지만, 그만큼 추정한 범위는 부정확해진다.",
+      condition: function (s) { return s.s4Batch.length > 0; },
+    },
+    {
+      id: "d4",
+      text: "신뢰도 95%, 99%는 같은 방법으로 반복해서 구간을 만들었을 때, 그 구간이 모평균을 포함하는 비율을 뜻한다.",
+      condition: function (s) { return s.currentStep >= 5; },
+    },
+    {
+      id: "d5",
+      text: "표준정규분포에서 찾은 z값을 이용하면, 신뢰도에 따른 신뢰구간 공식을 수학적으로 만들 수 있다.",
+      condition: function (s) { return s.s6Found95 && s.s6Found99; },
+    },
+    {
+      id: "d6",
+      text: "같은 방법으로 표본을 반복 추출하면 결과는 매번 달라지지만, 신뢰구간이 모평균을 포함하는 비율에는 일정한 규칙성이 나타난다.",
+      condition: function (s) { return s.meanRevealed && s.history.length >= 10; },
+    },
+    {
+      id: "d7",
+      text: "신뢰도와 표본크기는 신뢰구간의 길이에 서로 다른 영향을 준다 — 신뢰도가 높을수록 구간은 넓어지고, 표본크기가 클수록 구간은 좁아진다.",
+      condition: function (s) { return Object.keys(s.s9Explored).length >= 2; },
+    },
+  ];
+
+  function checkDiscoveries() {
+    let changed = false;
+    DISCOVERY_DEFINITIONS.forEach(function (d) {
+      if (state.discoveries.indexOf(d.id) === -1 && d.condition(state)) {
+        state.discoveries.push(d.id);
+        changed = true;
+      }
+    });
+    if (changed) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* 조용히 무시 */ }
+    }
+    renderDiscoveriesPanel();
+  }
+
+  function renderDiscoveriesPanel() {
+    const list = document.getElementById("discoveriesList");
+    const empty = document.getElementById("discoveriesEmpty");
+    if (!list || !empty) return;
+    if (state.discoveries.length === 0) {
+      list.innerHTML = "";
+      empty.style.display = "";
+      return;
+    }
+    empty.style.display = "none";
+    list.innerHTML = DISCOVERY_DEFINITIONS
+      .filter(function (d) { return state.discoveries.indexOf(d.id) !== -1; })
+      .map(function (d) { return "<li>" + d.text + "</li>"; })
+      .join("");
   }
 
   function goToStep(n) {
@@ -362,7 +441,7 @@
     const container = document.getElementById("step-1");
     const previewSample = state.population.slice(0, 5);
     container.innerHTML =
-      '<h2>1. 탐구 상황</h2>' +
+      '<h2>일부만 보고 전체를 어떻게 판단할 수 있을까?</h2>' +
       '<div class="card">' +
         '<p>우리 학교 고등학생 1,000명의 <strong>하루 스마트폰 사용시간(분)</strong>이 궁금합니다. ' +
         '하지만 1,000명 전체를 다 조사하는 건 시간과 비용이 많이 듭니다.</p>' +
@@ -439,7 +518,7 @@
   function s2Render() {
     const container = document.getElementById("step-2");
     container.innerHTML =
-      '<h2>2. 점추정의 한계</h2>' +
+      '<h2>표본에서 얻은 하나의 값은 얼마나 믿을 수 있을까?</h2>' +
       '<div class="card">' +
         '<p>같은 방법으로 학생 ' + state.s2SampleSize + '명을 여러 번 뽑아 표본평균을 계산해봅시다. 뽑을 때마다 표본평균이 어떻게 달라지는지 관찰해보세요.</p>' +
       '</div>' +
@@ -475,7 +554,7 @@
   function s3Render() {
     const container = document.getElementById("step-3");
     container.innerHTML =
-      '<h2>3. 구간추정의 필요성</h2>' +
+      '<h2>왜 어떤 값이 아니라 범위로 추정해야 할까?</h2>' +
       '<div class="card">' +
         '<p>방금 확인했듯, 표본평균 하나(점추정)는 뽑을 때마다 달라집니다. 그렇다면 모평균을 <strong>하나의 값이 아니라 일정한 범위(구간)</strong>로 추정하면 어떤 점이 더 나을까요? 자유롭게 생각을 적어보세요.</p>' +
         '<textarea id="s3-text" rows="4" placeholder="예: 표본평균이 매번 달라지니까..."></textarea>' +
@@ -599,7 +678,7 @@
   function s4Render() {
     const container = document.getElementById("step-4");
     container.innerHTML =
-      '<h2>4. 구간 길이와 모평균 포함 정도 탐구</h2>' +
+      '<h2>구간 추정의 범위를 넓히면 무엇이 달라질까?</h2>' +
       '<div class="card"><p>표본평균 ± 오차범위로 구간을 만들어봅시다. 오차범위를 바꾸면서, 만든 구간이 (아직 공개되지 않은) 실제 모평균을 포함하는 정도가 어떻게 달라지는지 관찰해보세요.</p></div>' +
       '<div class="card controls-card">' +
         '<div class="control-row"><label for="s4-margin">오차범위 (± <span id="s4-margin-val">' + state.s4Margin + '</span>분)</label>' +
@@ -728,7 +807,7 @@
   function s5Render() {
     const container = document.getElementById("step-5");
     container.innerHTML =
-      '<h2>5. 신뢰도의 필요성과 의미</h2>' +
+      '<h2>95%, 99% 신뢰한다는 것은 무엇을 의미할까?</h2>' +
       '<div class="card">' +
         '<p>모평균을 추정하기 위해 만든 구간을 <strong>"신뢰구간"</strong>이라 부르고, 같은 방법으로 구간을 반복해서 만들었을 때 그 구간이 실제 모평균을 포함할 것으로 기대되는 비율을 <strong>"신뢰도"</strong>라고 합니다.</p>' +
         '<p>일반적으로 통계에서는 신뢰도로 <strong>95%와 99%</strong>를 많이 사용합니다.</p>' +
@@ -786,7 +865,7 @@
     // 헤더와 소개 콘텐츠는 처음 한 번만 설정
     if (!container.querySelector("#s6-find-section")) {
       container.innerHTML =
-        '<h2>6. 표준정규분포를 이용한 신뢰구간 공식 유도</h2>' +
+        '<h2>표준정규분포에서 찾은 z값으로, 신뢰구간을 나타내는 식을 어떻게 만들 수 있을까?</h2>' +
         '<div class="card">' +
           '<p>아래 슬라이더로 표준정규분포의 가운데 영역을 조절하면서, 그 영역의 넓이가 0.95, 0.99가 되는 순간의 z값을 찾아봅시다.</p>' +
         '</div>';
@@ -984,7 +1063,7 @@
   function s7Render() {
     const container = document.getElementById("step-7");
     container.innerHTML =
-      '<h2>7. 한 표본의 신뢰구간 계산과 해석</h2>' +
+      '<h2>우리가 만든 공식으로 실제 표본의 신뢰구간을 구하면 무엇을 알 수 있을까?</h2>' +
       '<div class="card">' +
         '<label>표본크기 (n): <span id="s7-n-label">' + state.sampleSize + '</span></label>' +
         '<input id="s7-n-slider" type="range" min="10" max="200" value="' + state.sampleSize + '">' +
@@ -1255,7 +1334,7 @@
     const container = document.getElementById("step-8");
     container.innerHTML =
       (firstEntry ? '<div class="card reflect-card"><p><strong>사실 모집단은 이랬습니다!</strong> 지금까지 여러분이 추정해온 진짜 모집단을 공개합니다.</p></div>' : '') +
-      '<h2>8. 반복 시뮬레이션을 통한 신뢰도의 의미 확인</h2>' +
+      '<h2>같은 방법으로 반복하면 어떤 규칙성이 나타날까?</h2>' +
       '<div class="card">' +
         '<canvas id="s8-histogram-canvas" width="600" height="220"></canvas>' +
         '<div id="s8-stats"></div>' +
@@ -1342,7 +1421,7 @@
     const n = state.sampleSize;
 
     container.innerHTML =
-      '<h2>9. 표본크기의 영향</h2>' +
+      '<h2>더 많은 자료는 신뢰구간에 어떤 영향을 미칠까?</h2>' +
       '<div class="card"><p>신뢰도(95%)는 고정하고, 표본크기(n)만 바꿔가며 신뢰구간의 폭이 어떻게 달라지는지 슬라이더로 확인해보세요.</p></div>' +
       '<div class="card controls-card">' +
         '<div class="control-row"><label for="s9-n">표본크기 (n = <span id="s9-n-val">' + n + '</span>명)</label>' +
@@ -1367,10 +1446,14 @@
   const S10_SAMPLE_MEAN = 42; // 1학년 통학시간(분) 예시 표본평균 — 고정값으로 제시
   const S10_SIGMA = 12;
 
+  const UNIT_GENERALIZATION =
+    "표본을 이용해 모집단의 특성을 추정할 때는, 표본에서 얻은 정보에는 어느 정도의 불확실성이 있다는 것을 고려해야 한다. " +
+    "신뢰구간은 이 불확실성을 하나의 범위로 나타내어, 판단이나 의사결정의 근거로 활용할 수 있다.";
+
   function s10Render() {
     const container = document.getElementById("step-10");
     container.innerHTML =
-      '<h2>10. 새로운 상황에 적용</h2>' +
+      '<h2>이 근거만으로 의사결정을 정당화할 수 있을까?</h2>' +
       '<div class="card">' +
         '<p>이번엔 같은 학교 1학년 학생들의 <strong>평균 통학시간(분)</strong>이 궁금합니다. 1학년 300명 중 ' + S10_SAMPLE_SIZE + '명을 무작위로 뽑아 조사했더니 평균 통학시간이 <strong>' + S10_SAMPLE_MEAN + '분</strong>으로 나왔습니다. (모표준편차는 과거 자료를 참고해 ' + S10_SIGMA + '분으로 알려져 있다고 가정합니다.)</p>' +
       '</div>' +
@@ -1381,6 +1464,20 @@
       '<div class="card">' +
         '<label for="s10-text">계산된 신뢰구간을 바탕으로, 학교가 무엇을 결정할 수 있을지(예: 스쿨버스 배차 시간, 지각 방지 대책) 서술해보세요.</label>' +
         '<textarea id="s10-text" rows="5" placeholder="예: ..."></textarea>' +
+      '</div>' +
+      '<div class="card justify-card">' +
+        '<h3><span class="panel-icon">✍</span> 나의 판단을 정당화해 봅시다</h3>' +
+        '<label for="s10-justify-decision">나는 ____라고 판단한다.</label>' +
+        '<textarea id="s10-justify-decision" rows="2" placeholder="예: 스쿨버스를 1대 더 늘려야 한다고..."></textarea>' +
+        '<label for="s10-justify-reason" style="margin-top:10px;display:block;">그 근거는 ____이다.</label>' +
+        '<textarea id="s10-justify-reason" rows="3" placeholder="예: 95% 신뢰구간이 ~이기 때문에..."></textarea>' +
+      '</div>' +
+      '<div class="card">' +
+        '<h3>이번 탐구를 통해 알게 된 내용을 하나의 문장으로 정리해 봅시다.</h3>' +
+        '<p class="hint">표본을 통해 모집단의 평균을 추정할 때에는</p>' +
+        '<textarea id="s10-generalization-input" rows="3" placeholder="____________________________________________."></textarea>' +
+        '<button class="btn-secondary" id="s10-generalization-btn" style="margin-top:10px;">지금까지의 발견과 비교해 보세요</button>' +
+        '<div class="feedback' + (state.s10GeneralizationRevealed ? " correct" : " hidden") + '" id="s10-generalization-reveal">' + UNIT_GENERALIZATION + '</div>' +
       '</div>';
 
     const resultEl = document.getElementById("s10-result");
@@ -1401,6 +1498,33 @@
     textarea.addEventListener("input", function (e) {
       state.s10Text = e.target.value;
       saveState();
+    });
+
+    const justifyDecision = document.getElementById("s10-justify-decision");
+    justifyDecision.value = state.s10JustifyDecision || "";
+    justifyDecision.addEventListener("input", function (e) {
+      state.s10JustifyDecision = e.target.value;
+      saveState();
+    });
+    const justifyReason = document.getElementById("s10-justify-reason");
+    justifyReason.value = state.s10JustifyReason || "";
+    justifyReason.addEventListener("input", function (e) {
+      state.s10JustifyReason = e.target.value;
+      saveState();
+    });
+
+    const generalizationInput = document.getElementById("s10-generalization-input");
+    generalizationInput.value = state.s10GeneralizationInput || "";
+    generalizationInput.addEventListener("input", function (e) {
+      state.s10GeneralizationInput = e.target.value;
+      saveState();
+    });
+    document.getElementById("s10-generalization-btn").addEventListener("click", function () {
+      state.s10GeneralizationRevealed = true;
+      saveState();
+      const reveal = document.getElementById("s10-generalization-reveal");
+      reveal.classList.remove("hidden");
+      reveal.classList.add("correct");
     });
   }
 
@@ -1423,6 +1547,7 @@
     initPopulation();
     initNavEvents();
     initAllSteps();
+    checkDiscoveries();
     subscribe(function () {
       if (state.currentStep === 8 || document.getElementById("step-8").classList.contains("active")) {
         s8Render();
