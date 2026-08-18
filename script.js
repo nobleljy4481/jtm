@@ -924,15 +924,18 @@
     const contains99 = containsMean(interval99, state.mu);
     const selectedInterval = state.confidenceLevel === 99 ? interval99 : interval95;
     const selectedContains = state.confidenceLevel === 99 ? contains99 : contains95;
+    // state.history에는 원본 sample 배열을 저장하지 않는다 — 이력 중 화면에 표시되는 건
+    // 가장 최근 표본(state.currentSample)뿐이므로, 매 시행마다 학생 배열 전체를 쌓아두면
+    // 반복 시뮬레이션(100회 등)에서 state가 불필요하게 커진다.
     const record = {
-      sample: sample, sampleMean: sampleMean, n: state.sampleSize,
+      sampleMean: sampleMean, n: state.sampleSize,
       interval95: interval95, interval99: interval99,
       contains95: contains95, contains99: contains99,
       interval: selectedInterval, contains: selectedContains,
     };
-    state.currentSample = record;
+    state.currentSample = Object.assign({ sample: sample }, record);
     state.history.push(record);
-    return record;
+    return state.currentSample;
   }
 
   function s7DrawSample() {
@@ -1013,9 +1016,15 @@
 
   function drawErrorBarChartFrame(canvas, history, mode, mu, lastBarAlpha) {
     const ctx = canvas.getContext("2d");
-    const rowH = 16, topPad = 26, bottomPad = 30, leftPad = 44, rightPad = 12;
+    // drawMarginBatchChart(Task 6)와 같은 패턴: 이력이 늘어나도 캔버스 높이가 무한정
+    // 커지지 않도록 행 높이를 예산(300px) 안에서 압축한다. 시행 수가 적을 때는 기존과
+    // 동일하게 16px를 유지한다. rowH에는 바닥값(0.5px)이 있어 아주 많은 시행에서는
+    // 다시 선형으로 늘 수 있으므로, 캔버스 높이 자체에도 상한을 둔다.
+    const rowH = Math.max(0.5, Math.min(16, 300 / Math.max(history.length, 1)));
+    const topPad = 26, bottomPad = 30, leftPad = 44, rightPad = 12;
+    const MAX_ERRORBAR_HEIGHT = 500;
     canvas.width = 600;
-    canvas.height = Math.max(160, topPad + bottomPad + history.length * rowH);
+    canvas.height = Math.min(MAX_ERRORBAR_HEIGHT, Math.max(160, topPad + bottomPad + history.length * rowH));
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const lowerKey = mode === "99" ? "interval99" : (mode === "95" ? "interval95" : "interval99");
@@ -1134,8 +1143,9 @@
     const mode = state.tab8ViewMode;
     const datasets = [];
     function cumulativeRate(key) {
+      let count = 0;
       return history.map(function (h, i) {
-        const count = history.slice(0, i + 1).filter(function (x) { return x[key]; }).length;
+        if (h[key]) count++;
         return { x: i + 1, y: (count / (i + 1)) * 100 };
       });
     }
