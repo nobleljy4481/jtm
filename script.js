@@ -976,6 +976,259 @@
     verdictEl.style.color = cs.contains ? "#16A34A" : "#DC2626";
   }
 
+  /* ===== Task 11: 8단계 — 반복 시뮬레이션 + 모평균 공개 ===== */
+
+  let convergenceChart = null, gauge95Chart = null, gauge99Chart = null;
+  let errorBarAnimHandle = null;
+
+  function drawErrorBarChartFrame(canvas, history, mode, mu, lastBarAlpha) {
+    const ctx = canvas.getContext("2d");
+    const rowH = 16, topPad = 26, bottomPad = 30, leftPad = 44, rightPad = 12;
+    canvas.width = 600;
+    canvas.height = Math.max(160, topPad + bottomPad + history.length * rowH);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const lowerKey = mode === "99" ? "interval99" : (mode === "95" ? "interval95" : "interval99");
+    const lowers = history.map(function (h) { return h[lowerKey].lower; });
+    const uppers = history.map(function (h) { return h[lowerKey].upper; });
+    const dataMin = lowers.length ? Math.min.apply(null, lowers) : mu - 10;
+    const dataMax = uppers.length ? Math.max.apply(null, uppers) : mu + 10;
+    const span = Math.max(dataMax - dataMin, 1);
+    const min = Math.min(dataMin, mu) - span * 0.15;
+    const max = Math.max(dataMax, mu) + span * 0.15;
+    const chartW = canvas.width - leftPad - rightPad;
+    function xFor(v) { return leftPad + ((v - min) / (max - min)) * chartW; }
+
+    history.forEach(function (h, i) {
+      const y = topPad + i * rowH + rowH / 2;
+      const isLast = i === history.length - 1;
+      ctx.globalAlpha = isLast ? lastBarAlpha : 1;
+      if (mode === "both") {
+        ctx.strokeStyle = "rgba(37,99,235,0.35)";
+        ctx.lineWidth = 10;
+        ctx.beginPath();
+        ctx.moveTo(xFor(h.interval99.lower), y);
+        ctx.lineTo(xFor(h.interval99.upper), y);
+        ctx.stroke();
+        ctx.strokeStyle = h.contains95 ? "#16A34A" : "#DC2626";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(xFor(h.interval95.lower), y);
+        ctx.lineTo(xFor(h.interval95.upper), y);
+        ctx.stroke();
+      } else {
+        const iv = mode === "99" ? h.interval99 : h.interval95;
+        const contains = mode === "99" ? h.contains99 : h.contains95;
+        ctx.strokeStyle = contains ? "#16A34A" : "#DC2626";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(xFor(iv.lower), y);
+        ctx.lineTo(xFor(iv.upper), y);
+        ctx.stroke();
+      }
+    });
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 1;
+
+    const muX = xFor(mu);
+    ctx.strokeStyle = "#1E293B";
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(muX, topPad - 10);
+    ctx.lineTo(muX, topPad + Math.max(history.length, 1) * rowH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const label = "모평균 " + mu;
+    ctx.font = "bold 11px Pretendard, sans-serif";
+    const textWidth = ctx.measureText(label).width;
+    ctx.fillStyle = "#1E293B";
+    ctx.fillRect(muX - textWidth / 2 - 4, topPad - 26, textWidth + 8, 16);
+    ctx.fillStyle = "white";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, muX - textWidth / 2, topPad - 18);
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+  }
+
+  function renderErrorBarChart(history, mode, mu, animateNewBar) {
+    const canvas = document.getElementById("s8-errorbar-canvas");
+    if (errorBarAnimHandle) { cancelAnimationFrame(errorBarAnimHandle); errorBarAnimHandle = null; }
+    if (!animateNewBar || history.length === 0) {
+      drawErrorBarChartFrame(canvas, history, mode, mu, 1);
+      return;
+    }
+    const start = performance.now();
+    const duration = 250;
+    function frame(now) {
+      const t = Math.min(1, (now - start) / duration);
+      drawErrorBarChartFrame(canvas, history, mode, mu, t);
+      if (t < 1) errorBarAnimHandle = requestAnimationFrame(frame);
+      else errorBarAnimHandle = null;
+    }
+    errorBarAnimHandle = requestAnimationFrame(frame);
+  }
+
+  function renderGauges(rate95, rate99) {
+    if (!gauge95Chart) {
+      gauge95Chart = new Chart(document.getElementById("s8-gauge95-canvas"), {
+        type: "doughnut",
+        data: { labels: ["95% 성공률", ""], datasets: [{ data: [rate95, 100 - rate95], backgroundColor: ["#16A34A", "#E2E8F0"] }] },
+        options: { responsive: false, maintainAspectRatio: false, circumference: 180, rotation: 270, cutout: "70%", plugins: { legend: { display: false } } },
+      });
+    } else {
+      gauge95Chart.data.datasets[0].data = [rate95, 100 - rate95];
+      gauge95Chart.update();
+    }
+    if (!gauge99Chart) {
+      gauge99Chart = new Chart(document.getElementById("s8-gauge99-canvas"), {
+        type: "doughnut",
+        data: { labels: ["99% 성공률", ""], datasets: [{ data: [rate99, 100 - rate99], backgroundColor: ["#2563EB", "#E2E8F0"] }] },
+        options: { responsive: false, maintainAspectRatio: false, circumference: 180, rotation: 270, cutout: "70%", plugins: { legend: { display: false } } },
+      });
+    } else {
+      gauge99Chart.data.datasets[0].data = [rate99, 100 - rate99];
+      gauge99Chart.update();
+    }
+  }
+
+  function renderConvergenceChart() {
+    const history = state.history;
+    const mode = state.tab8ViewMode;
+    const datasets = [];
+    function cumulativeRate(key) {
+      return history.map(function (h, i) {
+        const count = history.slice(0, i + 1).filter(function (x) { return x[key]; }).length;
+        return { x: i + 1, y: (count / (i + 1)) * 100 };
+      });
+    }
+    if (mode === "both" || mode === "95") datasets.push({ label: "95% 누적 성공률", data: cumulativeRate("contains95"), borderColor: "#16A34A", pointRadius: 0 });
+    if (mode === "both" || mode === "99") datasets.push({ label: "99% 누적 성공률", data: cumulativeRate("contains99"), borderColor: "#2563EB", pointRadius: 0 });
+
+    if (!convergenceChart) {
+      convergenceChart = new Chart(document.getElementById("s8-convergence-canvas"), {
+        type: "line",
+        data: { datasets: datasets },
+        options: { responsive: false, maintainAspectRatio: false, scales: { x: { type: "linear", title: { display: true, text: "시행 횟수" } }, y: { min: 0, max: 100 } } },
+      });
+    } else {
+      convergenceChart.data.datasets = datasets;
+      convergenceChart.update();
+    }
+  }
+
+  function s8RunTrials(count) {
+    state.simulationPaused = false;
+    let done = 0;
+    function step() {
+      if (state.simulationPaused || done >= count) return;
+      drawOneTrial();
+      saveState();
+      s8RenderResults(true);
+      done++;
+      setTimeout(step, 200);
+    }
+    step();
+  }
+
+  function s8RenderResults(animate) {
+    const total = state.history.length;
+    const success95 = state.history.filter(function (h) { return h.contains95; }).length;
+    const success99 = state.history.filter(function (h) { return h.contains99; }).length;
+    const rate95 = total === 0 ? 0 : (success95 / total * 100);
+    const rate99 = total === 0 ? 0 : (success99 / total * 100);
+    const mode = state.tab8ViewMode;
+
+    let html = "총 시행: " + total + "<br>";
+    if (mode === "both") {
+      html += "95% 성공률: <b style='color:#16A34A'>" + rate95.toFixed(1) + "%</b> (" + success95 + "/" + total + ") &nbsp;·&nbsp; 99% 성공률: <b style='color:#2563EB'>" + rate99.toFixed(1) + "%</b> (" + success99 + "/" + total + ")";
+    } else if (mode === "95") {
+      html += "95% 성공률: <b style='color:#16A34A'>" + rate95.toFixed(1) + "%</b> (" + success95 + "/" + total + ")";
+    } else {
+      html += "99% 성공률: <b style='color:#2563EB'>" + rate99.toFixed(1) + "%</b> (" + success99 + "/" + total + ")";
+    }
+    document.getElementById("s8-dashboard").innerHTML = html;
+    document.getElementById("s8-gauge95-canvas").style.display = (mode === "both" || mode === "95") ? "" : "none";
+    document.getElementById("s8-gauge99-canvas").style.display = (mode === "both" || mode === "99") ? "" : "none";
+
+    renderErrorBarChart(state.history, mode, state.mu, !!animate);
+    renderGauges(rate95, rate99);
+    renderConvergenceChart();
+  }
+
+  function s8Render() {
+    const firstEntry = !state.meanRevealed;
+    state.meanRevealed = true;
+    saveState();
+
+    const container = document.getElementById("step-8");
+    container.innerHTML =
+      (firstEntry ? '<div class="card reflect-card"><p><strong>사실 모집단은 이랬습니다!</strong> 지금까지 여러분이 추정해온 진짜 모집단을 공개합니다.</p></div>' : '') +
+      '<h2>8. 반복 시뮬레이션을 통한 신뢰도의 의미 확인</h2>' +
+      '<div class="card">' +
+        '<canvas id="s8-histogram-canvas" width="600" height="220"></canvas>' +
+        '<div id="s8-stats"></div>' +
+        '<button class="btn-secondary" id="s8-regen">모집단 다시 생성</button>' +
+      '</div>' +
+      '<div class="card controls-card">' +
+        '<button class="btn-primary" id="s8-draw-1">1회</button>' +
+        '<button class="btn-primary" id="s8-draw-10">10회</button>' +
+        '<button class="btn-primary" id="s8-draw-100">100회</button>' +
+        '<button class="btn-secondary" id="s8-pause">일시정지</button>' +
+        '<button class="btn-secondary" id="s8-reset">초기화</button>' +
+      '</div>' +
+      '<div class="card">' +
+        '<div class="toggle-group" id="s8-mode">' +
+          '<button class="toggle-btn' + (state.tab8ViewMode === "95" ? " active" : "") + '" data-mode="95">95%만</button>' +
+          '<button class="toggle-btn' + (state.tab8ViewMode === "99" ? " active" : "") + '" data-mode="99">99%만</button>' +
+          '<button class="toggle-btn' + (state.tab8ViewMode === "both" ? " active" : "") + '" data-mode="both">비교 (95%+99%)</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card"><div class="scroll-box"><canvas id="s8-errorbar-canvas" width="600" height="200"></canvas></div></div>' +
+      '<div class="card">' +
+        '<div id="s8-dashboard" style="margin-bottom:10px;"></div>' +
+        '<div style="display:flex; gap:8px; justify-content:center;">' +
+          '<canvas id="s8-gauge95-canvas" width="140" height="140"></canvas>' +
+          '<canvas id="s8-gauge99-canvas" width="140" height="140"></canvas>' +
+        '</div>' +
+        '<canvas id="s8-convergence-canvas" width="560" height="160"></canvas>' +
+      '</div>';
+
+    drawHistogram(document.getElementById("s8-histogram-canvas"), state.population, state.mu, state.sigma, true);
+    const values = state.population.map(function (p) { return p.minutes; });
+    document.getElementById("s8-stats").innerHTML =
+      "평균: " + mean(values).toFixed(2) + "분 · 표준편차: " + stdDev(values).toFixed(2) + "분";
+
+    document.getElementById("s8-regen").addEventListener("click", function () {
+      state.population = generatePopulation(state.mu, state.sigma, state.populationSize, state.seed);
+      state.history = [];
+      state.currentSample = null;
+      saveState();
+      s8Render();
+    });
+    document.getElementById("s8-draw-1").addEventListener("click", function () { s8RunTrials(1); });
+    document.getElementById("s8-draw-10").addEventListener("click", function () { s8RunTrials(10); });
+    document.getElementById("s8-draw-100").addEventListener("click", function () { s8RunTrials(100); });
+    document.getElementById("s8-pause").addEventListener("click", function () { state.simulationPaused = true; });
+    document.getElementById("s8-reset").addEventListener("click", function () {
+      state.simulationPaused = true;
+      state.history = [];
+      saveState();
+      s8RenderResults(false);
+    });
+    document.querySelectorAll("#s8-mode .toggle-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        state.tab8ViewMode = btn.dataset.mode;
+        saveState();
+        document.querySelectorAll("#s8-mode .toggle-btn").forEach(function (b) { b.classList.toggle("active", b === btn); });
+        s8RenderResults(false);
+      });
+    });
+
+    s8RenderResults(false);
+  }
+
   // 임시 초기화 호출 (Task 13에서 정식 init()으로 교체 예정)
   loadState();
   initPopulation();
