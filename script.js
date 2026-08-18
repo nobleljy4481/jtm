@@ -1340,6 +1340,9 @@
       });
     });
     goToStep(state.currentStep);
+    // 새로고침 등으로 8단계 상태가 그대로 복원된 경우, goToStep은 클릭이 아닌 직접 호출이라
+    // 위 클릭 리스너를 타지 않으므로 여기서 별도로 렌더링을 트리거해야 한다.
+    if (document.getElementById("step-8").classList.contains("active")) s8Render();
   }
 
   document.addEventListener("DOMContentLoaded", init);
