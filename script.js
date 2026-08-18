@@ -887,6 +887,95 @@
     }
   }
 
+  /* ===== Task 10: 7단계 — 한 표본의 신뢰구간 계산과 해석 ===== */
+
+  function drawOneTrial() {
+    const sample = sampleWithReplacement(state.population, state.sampleSize, Math.random);
+    const values = sample.map(function (s) { return s.minutes; });
+    const sampleMean = mean(values);
+    const interval95 = confidenceInterval(sampleMean, state.sigma, state.sampleSize, 95);
+    const interval99 = confidenceInterval(sampleMean, state.sigma, state.sampleSize, 99);
+    const contains95 = containsMean(interval95, state.mu);
+    const contains99 = containsMean(interval99, state.mu);
+    const selectedInterval = state.confidenceLevel === 99 ? interval99 : interval95;
+    const selectedContains = state.confidenceLevel === 99 ? contains99 : contains95;
+    const record = {
+      sample: sample, sampleMean: sampleMean, n: state.sampleSize,
+      interval95: interval95, interval99: interval99,
+      contains95: contains95, contains99: contains99,
+      interval: selectedInterval, contains: selectedContains,
+    };
+    state.currentSample = record;
+    state.history.push(record);
+    return record;
+  }
+
+  function s7DrawSample() {
+    drawOneTrial();
+    saveState();
+    s7Render();
+  }
+
+  function s7Render() {
+    const container = document.getElementById("step-7");
+    container.innerHTML =
+      '<h2>7. 한 표본의 신뢰구간 계산과 해석</h2>' +
+      '<div class="card">' +
+        '<label>표본크기 (n): <span id="s7-n-label">' + state.sampleSize + '</span></label>' +
+        '<input id="s7-n-slider" type="range" min="10" max="200" value="' + state.sampleSize + '">' +
+        '<div class="control-row toggle-row" style="margin-top:10px;"><span>신뢰도</span>' +
+          '<div class="toggle-group" id="s7-cl">' +
+            '<button class="toggle-btn' + (state.confidenceLevel === 95 ? " active" : "") + '" data-cl="95">95%</button>' +
+            '<button class="toggle-btn' + (state.confidenceLevel === 99 ? " active" : "") + '" data-cl="99">99%</button>' +
+          '</div></div>' +
+        '<button class="btn-primary" id="s7-draw" style="margin-top:10px;">표본 1회 추출</button>' +
+      '</div>' +
+      '<div class="card"><canvas id="s7-dotplot-canvas" width="600" height="200"></canvas></div>' +
+      '<div class="card"><div id="s7-sample-table" class="scroll-box"></div></div>' +
+      '<div class="card"><div id="s7-calc"></div></div>' +
+      '<div class="card"><canvas id="s7-interval-canvas" width="600" height="120"></canvas>' +
+        '<p id="s7-verdict"></p></div>';
+
+    document.getElementById("s7-n-slider").addEventListener("input", function (e) {
+      state.sampleSize = Number(e.target.value);
+      document.getElementById("s7-n-label").textContent = state.sampleSize;
+      saveState();
+    });
+    document.querySelectorAll("#s7-cl .toggle-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        state.confidenceLevel = Number(btn.dataset.cl);
+        saveState();
+        s7Render();
+      });
+    });
+    document.getElementById("s7-draw").addEventListener("click", s7DrawSample);
+
+    const cs = state.currentSample;
+    if (!cs) {
+      drawDotPlot(document.getElementById("s7-dotplot-canvas"), state.population, []);
+      return;
+    }
+    drawDotPlot(document.getElementById("s7-dotplot-canvas"), state.population, cs.sample.map(function (s) { return s.id; }));
+    document.getElementById("s7-sample-table").innerHTML =
+      "<table><tr><th>ID</th><th>사용시간(분)</th></tr>" +
+      cs.sample.map(function (s) { return "<tr><td>" + s.id + "</td><td>" + s.minutes + "</td></tr>"; }).join("") +
+      "</table>";
+
+    const values = cs.sample.map(function (s) { return s.minutes; });
+    document.getElementById("s7-calc").innerHTML =
+      "합계 " + values.reduce(function (a, b) { return a + b; }, 0) + " ÷ " + values.length + " = 표본평균 " + cs.sampleMean.toFixed(2) + "<br>" +
+      "ME = " + cs.interval.z + " × " + state.sigma + " / √" + state.sampleSize + " = " + cs.interval.marginOfError.toFixed(2) + "<br>" +
+      "[" + cs.sampleMean.toFixed(2) + " - " + cs.interval.marginOfError.toFixed(2) + ", " + cs.sampleMean.toFixed(2) + " + " + cs.interval.marginOfError.toFixed(2) + "] = [" +
+      cs.interval.lower.toFixed(2) + ", " + cs.interval.upper.toFixed(2) + "]";
+
+    drawIntervalLine(document.getElementById("s7-interval-canvas"), cs.interval, state.mu, cs.sampleMean, state.meanRevealed);
+    const verdictEl = document.getElementById("s7-verdict");
+    verdictEl.textContent = cs.contains
+      ? "이번 신뢰구간은 실제 모평균 위치를 포함합니다."
+      : "이번 표본평균이 치우치게 추출되어 실제 모평균 위치를 포함하지 못했습니다.";
+    verdictEl.style.color = cs.contains ? "#16A34A" : "#DC2626";
+  }
+
   // 임시 초기화 호출 (Task 13에서 정식 init()으로 교체 예정)
   loadState();
   initPopulation();
@@ -897,6 +986,7 @@
   s5Render();
   s6FindRender();
   s6DerivRender();
+  s7Render();
   goToStep(1);
   initNavEvents();
 
