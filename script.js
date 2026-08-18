@@ -1101,6 +1101,11 @@
   }
 
   function renderGauges(rate95, rate99) {
+    // Chart.js CDN 로드 실패 시(오프라인 등) 여기서 예외를 던지면 s8RenderResults()를
+    // 호출한 setTimeout 콜백 전체가 중단되어 다음 시행 예약(setTimeout)까지 함께 끊긴다.
+    // 대시보드/Error Bar 등 Chart.js에 의존하지 않는 나머지 렌더링은 계속 동작해야 하므로
+    // 여기서는 조용히 건너뛴다.
+    if (typeof Chart === "undefined") return;
     if (!gauge95Chart) {
       gauge95Chart = new Chart(document.getElementById("s8-gauge95-canvas"), {
         type: "doughnut",
@@ -1124,6 +1129,7 @@
   }
 
   function renderConvergenceChart() {
+    if (typeof Chart === "undefined") return;
     const history = state.history;
     const mode = state.tab8ViewMode;
     const datasets = [];
