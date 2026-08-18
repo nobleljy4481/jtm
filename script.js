@@ -1158,6 +1158,13 @@
   }
 
   function s8Render() {
+    // innerHTML로 #step-8을 다시 그릴 때마다 기존 canvas가 새 canvas로 교체되므로,
+    // 이전 canvas를 가리키던 Chart.js 인스턴스를 먼저 destroy해서 renderGauges()/
+    // renderConvergenceChart()가 새 canvas에 다시 생성되도록 한다.
+    if (gauge95Chart) { gauge95Chart.destroy(); gauge95Chart = null; }
+    if (gauge99Chart) { gauge99Chart.destroy(); gauge99Chart = null; }
+    if (convergenceChart) { convergenceChart.destroy(); convergenceChart = null; }
+
     const firstEntry = !state.meanRevealed;
     state.meanRevealed = true;
     saveState();
