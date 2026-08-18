@@ -986,19 +986,24 @@
       cs.sample.map(function (s) { return "<tr><td>" + s.id + "</td><td>" + s.minutes + "</td></tr>"; }).join("") +
       "</table>";
 
+    // 신뢰도 토글은 이미 그려진 표본을 다시 뽑지 않고, 같은 표본의 두 구간
+    // (interval95/interval99) 중 현재 state.confidenceLevel에 맞는 쪽을 골라 보여준다.
+    const selInterval = state.confidenceLevel === 99 ? cs.interval99 : cs.interval95;
+    const selContains = state.confidenceLevel === 99 ? cs.contains99 : cs.contains95;
+
     const values = cs.sample.map(function (s) { return s.minutes; });
     document.getElementById("s7-calc").innerHTML =
       "합계 " + values.reduce(function (a, b) { return a + b; }, 0) + " ÷ " + values.length + " = 표본평균 " + cs.sampleMean.toFixed(2) + "<br>" +
-      "ME = " + cs.interval.z + " × " + state.sigma + " / √" + state.sampleSize + " = " + cs.interval.marginOfError.toFixed(2) + "<br>" +
-      "[" + cs.sampleMean.toFixed(2) + " - " + cs.interval.marginOfError.toFixed(2) + ", " + cs.sampleMean.toFixed(2) + " + " + cs.interval.marginOfError.toFixed(2) + "] = [" +
-      cs.interval.lower.toFixed(2) + ", " + cs.interval.upper.toFixed(2) + "]";
+      "ME = " + selInterval.z + " × " + state.sigma + " / √" + cs.n + " = " + selInterval.marginOfError.toFixed(2) + "<br>" +
+      "[" + cs.sampleMean.toFixed(2) + " - " + selInterval.marginOfError.toFixed(2) + ", " + cs.sampleMean.toFixed(2) + " + " + selInterval.marginOfError.toFixed(2) + "] = [" +
+      selInterval.lower.toFixed(2) + ", " + selInterval.upper.toFixed(2) + "]";
 
-    drawIntervalLine(document.getElementById("s7-interval-canvas"), cs.interval, state.mu, cs.sampleMean, state.meanRevealed);
+    drawIntervalLine(document.getElementById("s7-interval-canvas"), selInterval, state.mu, cs.sampleMean, state.meanRevealed);
     const verdictEl = document.getElementById("s7-verdict");
-    verdictEl.textContent = cs.contains
+    verdictEl.textContent = selContains
       ? "이번 신뢰구간은 실제 모평균 위치를 포함합니다."
       : "이번 표본평균이 치우치게 추출되어 실제 모평균 위치를 포함하지 못했습니다.";
-    verdictEl.style.color = cs.contains ? "#16A34A" : "#DC2626";
+    verdictEl.style.color = selContains ? "#16A34A" : "#DC2626";
   }
 
   /* ===== Task 11: 8단계 — 반복 시뮬레이션 + 모평균 공개 ===== */
