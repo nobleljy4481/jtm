@@ -19,6 +19,7 @@
       s2History: [],
 
       s3Text: "",
+      s3DiscoveryDraft: "",
 
       s4Margin: 5,
       s4Single: null,
@@ -40,16 +41,18 @@
       history: [],
       tab8ViewMode: "95",
       simulationPaused: false,
+      s8DiscoveryDraft: "",
 
       s9Explored: {},
+      s9DiscoveryDraft: "",
 
       s10Text: "",
       s10JustifyDecision: "",
       s10JustifyReason: "",
-      s10GeneralizationInput: "",
-      s10GeneralizationRevealed: false,
+      s10SynthesisText: "",
 
-      discoveries: [],
+      s5DiscoveryDraft: "",
+      studentDiscoveries: [], // [{ step, text }] — 학생이 직접 쓴 발견 문장(자동 생성 아님)
     };
   }
 
@@ -74,79 +77,115 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (e) { /* localStorage 사용 불가 시 조용히 무시 */ }
-    checkDiscoveries();
   }
 
-  /* ===== 개념기반 교육과정 요소: 탐구 질문 · 발견 누적 · 일반화 =====
-     "우리가 지금까지 발견한 것" 패널은 학생이 어느 단계에 있든 늘 보이며,
-     활동을 통해 실제로 확인한 관계만 하나씩 누적된다(되돌아가도 사라지지 않음). */
+  /* ===== 개념기반 교육과정 요소: "우리가 지금까지 발견한 것" =====
+     프로그램이 정답을 미리 채워 넣지 않는다. 학생이 각 단계의 활동을 마친 뒤
+     자신의 언어로 쓴 문장만 여기 쌓인다. 단계를 오가도 유지되고, "처음부터 다시"를
+     누르면 함께 초기화된다(state에 포함되어 localStorage로 저장/삭제되므로). */
 
-  const DISCOVERY_DEFINITIONS = [
-    {
-      id: "d1",
-      text: "표본에서 얻은 평균은 뽑을 때마다 달라지며, 모평균과 항상 같지는 않다.",
-      condition: function (s) { return s.s2History.length > 0; },
-    },
-    {
-      id: "d2",
-      text: "그래서 모평균은 하나의 값이 아니라 일정한 범위(구간)로 추정하는 것이 더 안정적인 방법이다.",
-      condition: function (s) { return s.currentStep >= 3; },
-    },
-    {
-      id: "d3",
-      text: "구간을 넓히면 모평균을 포함할 가능성은 높아지지만, 그만큼 추정한 범위는 부정확해진다.",
-      condition: function (s) { return s.s4Batch.length > 0; },
-    },
-    {
-      id: "d4",
-      text: "신뢰도 95%, 99%는 같은 방법으로 반복해서 구간을 만들었을 때, 그 구간이 모평균을 포함하는 비율을 뜻한다.",
-      condition: function (s) { return s.currentStep >= 5; },
-    },
-    {
-      id: "d5",
-      text: "표준정규분포에서 찾은 z값을 이용하면, 신뢰도에 따른 신뢰구간 공식을 수학적으로 만들 수 있다.",
-      condition: function (s) { return s.s6Found95 && s.s6Found99; },
-    },
-    {
-      id: "d6",
-      text: "같은 방법으로 표본을 반복 추출하면 결과는 매번 달라지지만, 신뢰구간이 모평균을 포함하는 비율에는 일정한 규칙성이 나타난다.",
-      condition: function (s) { return s.meanRevealed && s.history.length >= 10; },
-    },
-    {
-      id: "d7",
-      text: "신뢰도와 표본크기는 신뢰구간의 길이에 서로 다른 영향을 준다 — 신뢰도가 높을수록 구간은 넓어지고, 표본크기가 클수록 구간은 좁아진다.",
-      condition: function (s) { return Object.keys(s.s9Explored).length >= 2; },
-    },
-  ];
+  const DISCOVERY_STEP_LABELS = { 3: "2~3단계", 5: "5단계", 8: "8단계", 9: "9단계" };
 
-  function checkDiscoveries() {
-    let changed = false;
-    DISCOVERY_DEFINITIONS.forEach(function (d) {
-      if (state.discoveries.indexOf(d.id) === -1 && d.condition(state)) {
-        state.discoveries.push(d.id);
-        changed = true;
-      }
-    });
-    if (changed) {
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* 조용히 무시 */ }
-    }
+  function discoveryLabel(step) {
+    return DISCOVERY_STEP_LABELS[step] || (step + "단계");
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function addStudentDiscovery(step, text) {
+    text = (text || "").trim();
+    if (!text) return false;
+    state.studentDiscoveries.push({ step: step, text: text });
+    saveState();
     renderDiscoveriesPanel();
+    return true;
   }
+
+  // 목록 안에서 인라인으로 수정 중인 항목의 인덱스(페이지 상태일 뿐, 저장 대상 아님)
+  let editingDiscoveryIndex = -1;
 
   function renderDiscoveriesPanel() {
     const list = document.getElementById("discoveriesList");
     const empty = document.getElementById("discoveriesEmpty");
     if (!list || !empty) return;
-    if (state.discoveries.length === 0) {
+    if (state.studentDiscoveries.length === 0) {
       list.innerHTML = "";
       empty.style.display = "";
       return;
     }
     empty.style.display = "none";
-    list.innerHTML = DISCOVERY_DEFINITIONS
-      .filter(function (d) { return state.discoveries.indexOf(d.id) !== -1; })
-      .map(function (d) { return "<li>" + d.text + "</li>"; })
-      .join("");
+    list.innerHTML = state.studentDiscoveries.map(function (d, i) {
+      const label = discoveryLabel(d.step);
+      if (i === editingDiscoveryIndex) {
+        return '<li class="discovery-editing">' +
+          '<span class="discovery-step-tag">' + label + '</span>' +
+          '<textarea class="discovery-edit-input" rows="2">' + escapeHtml(d.text) + '</textarea>' +
+          '<div class="discovery-edit-actions">' +
+            '<button class="btn-primary discovery-save-btn" data-idx="' + i + '">저장</button>' +
+            '<button class="btn-secondary discovery-cancel-btn">취소</button>' +
+          '</div>' +
+        '</li>';
+      }
+      return '<li><span class="discovery-step-tag">' + label + '</span>' +
+        '<span class="discovery-text">' + escapeHtml(d.text) + '</span>' +
+        '<button class="discovery-edit-btn" data-idx="' + i + '" title="수정">✏️</button></li>';
+    }).join("");
+
+    list.querySelectorAll(".discovery-edit-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        editingDiscoveryIndex = Number(btn.dataset.idx);
+        renderDiscoveriesPanel();
+      });
+    });
+    list.querySelectorAll(".discovery-save-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const idx = Number(btn.dataset.idx);
+        const textarea = btn.closest("li").querySelector(".discovery-edit-input");
+        const newText = textarea.value.trim();
+        if (newText) state.studentDiscoveries[idx].text = newText;
+        editingDiscoveryIndex = -1;
+        saveState();
+        renderDiscoveriesPanel();
+      });
+    });
+    list.querySelectorAll(".discovery-cancel-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        editingDiscoveryIndex = -1;
+        renderDiscoveriesPanel();
+      });
+    });
+  }
+
+  // 단계 안에 넣는 "발견 작성" 카드 — 4개 단계(3·5·8·9)에서 공통으로 사용
+  function discoveryPromptCardHtml(step, question, draftValue) {
+    return '<div class="card discovery-prompt-card">' +
+      '<h3><span class="panel-icon">💡</span> 발견한 것 적어보기</h3>' +
+      '<p>' + question + '</p>' +
+      '<textarea id="s' + step + '-discovery-draft" rows="3" placeholder="한 문장으로 적어보세요.">' + escapeHtml(draftValue || "") + '</textarea>' +
+      '<button class="btn-secondary discovery-add-btn" data-step="' + step + '" style="margin-top:8px;">발견한 내용에 추가하기</button>' +
+      '</div>';
+  }
+
+  // discoveryPromptCardHtml로 만든 카드의 textarea/버튼에 이벤트를 연결.
+  // draftField는 defaultState()의 초안 저장 필드명(예: "s3DiscoveryDraft").
+  function wireDiscoveryPromptCard(step, draftField) {
+    const textarea = document.getElementById("s" + step + "-discovery-draft");
+    textarea.addEventListener("input", function (e) {
+      state[draftField] = e.target.value;
+      saveState();
+    });
+    document.querySelector('.discovery-add-btn[data-step="' + step + '"]').addEventListener("click", function () {
+      const added = addStudentDiscovery(step, textarea.value);
+      if (added) {
+        state[draftField] = "";
+        textarea.value = "";
+        saveState();
+      }
+    });
   }
 
   function goToStep(n) {
@@ -558,7 +597,8 @@
       '<div class="card">' +
         '<p>방금 확인했듯, 표본평균 하나(점추정)는 뽑을 때마다 달라집니다. 그렇다면 모평균을 <strong>하나의 값이 아니라 일정한 범위(구간)</strong>로 추정하면 어떤 점이 더 나을까요? 자유롭게 생각을 적어보세요.</p>' +
         '<textarea id="s3-text" rows="4" placeholder="예: 표본평균이 매번 달라지니까..."></textarea>' +
-      '</div>';
+      '</div>' +
+      discoveryPromptCardHtml(3, "표본에서 얻은 값과 모집단의 값 사이에는 어떤 관계가 있었나요? 이번 활동에서 발견한 것을 한 문장으로 적어보세요.", state.s3DiscoveryDraft);
 
     const textarea = document.getElementById("s3-text");
     textarea.value = state.s3Text || "";
@@ -566,6 +606,8 @@
       state.s3Text = e.target.value;
       saveState();
     });
+
+    wireDiscoveryPromptCard(3, "s3DiscoveryDraft");
   }
 
   /* ===== Task 6: 4단계 — 구간 길이와 포함 정도 탐구 ===== */
@@ -811,7 +853,10 @@
       '<div class="card">' +
         '<p>모평균을 추정하기 위해 만든 구간을 <strong>"신뢰구간"</strong>이라 부르고, 같은 방법으로 구간을 반복해서 만들었을 때 그 구간이 실제 모평균을 포함할 것으로 기대되는 비율을 <strong>"신뢰도"</strong>라고 합니다.</p>' +
         '<p>일반적으로 통계에서는 신뢰도로 <strong>95%와 99%</strong>를 많이 사용합니다.</p>' +
-      '</div>';
+      '</div>' +
+      discoveryPromptCardHtml(5, "신뢰도와 신뢰구간 사이에는 어떤 관계가 있었나요? 발견한 관계를 한 문장으로 적어보세요.", state.s5DiscoveryDraft);
+
+    wireDiscoveryPromptCard(5, "s5DiscoveryDraft");
   }
 
   const TARGET_TOLERANCE = 0.003;
@@ -1362,7 +1407,8 @@
           '<canvas id="s8-gauge99-canvas" width="140" height="140"></canvas>' +
         '</div>' +
         '<canvas id="s8-convergence-canvas" width="560" height="160"></canvas>' +
-      '</div>';
+      '</div>' +
+      discoveryPromptCardHtml(8, "같은 방법으로 표본추출과 신뢰구간 구성을 반복했을 때 어떤 규칙성을 발견했나요?", state.s8DiscoveryDraft);
 
     drawHistogram(document.getElementById("s8-histogram-canvas"), state.population, state.mu, state.sigma, true);
     const values = state.population.map(function (p) { return p.minutes; });
@@ -1394,6 +1440,8 @@
         s8RenderResults(false);
       });
     });
+
+    wireDiscoveryPromptCard(8, "s8DiscoveryDraft");
 
     s8RenderResults(false);
   }
@@ -1430,7 +1478,8 @@
       '<div class="card"><canvas id="s9-interval-canvas" width="600" height="120"></canvas>' +
         '<p id="s9-summary" class="summary-text"></p></div>' +
       '<div class="card"><canvas id="s9-trend-canvas" width="600" height="90"></canvas>' +
-        '<p class="hint">가로축: 표본크기 n (10~200) · 세로축: 신뢰구간 폭 · 슬라이더를 움직여 여러 n을 탐색해보세요.</p></div>';
+        '<p class="hint">가로축: 표본크기 n (10~200) · 세로축: 신뢰구간 폭 · 슬라이더를 움직여 여러 n을 탐색해보세요.</p></div>' +
+      discoveryPromptCardHtml(9, "표본의 크기가 달라질 때 신뢰구간은 어떻게 달라졌나요? 발견한 관계를 적어보세요.", state.s9DiscoveryDraft);
 
     s9UpdateDisplay(n);
 
@@ -1438,6 +1487,8 @@
       state.sampleSize = Number(e.target.value);
       s9UpdateDisplay(state.sampleSize);
     });
+
+    wireDiscoveryPromptCard(9, "s9DiscoveryDraft");
   }
 
   /* ===== Task 13: 10단계 — 새로운 상황에 적용 · 전체 통합 ===== */
@@ -1445,10 +1496,6 @@
   const S10_SAMPLE_SIZE = 40;
   const S10_SAMPLE_MEAN = 42; // 1학년 통학시간(분) 예시 표본평균 — 고정값으로 제시
   const S10_SIGMA = 12;
-
-  const UNIT_GENERALIZATION =
-    "표본을 이용해 모집단의 특성을 추정할 때는, 표본에서 얻은 정보에는 어느 정도의 불확실성이 있다는 것을 고려해야 한다. " +
-    "신뢰구간은 이 불확실성을 하나의 범위로 나타내어, 판단이나 의사결정의 근거로 활용할 수 있다.";
 
   function s10Render() {
     const container = document.getElementById("step-10");
@@ -1472,12 +1519,18 @@
         '<label for="s10-justify-reason" style="margin-top:10px;display:block;">그 근거는 ____이다.</label>' +
         '<textarea id="s10-justify-reason" rows="3" placeholder="예: 95% 신뢰구간이 ~이기 때문에..."></textarea>' +
       '</div>' +
+      '<div class="card discoveries-panel">' +
+        '<h3><span class="panel-icon">💡</span> 지금까지 발견한 것 모아보기</h3>' +
+        (state.studentDiscoveries.length === 0
+          ? '<p class="hint">아직 작성한 발견이 없습니다. 각 단계의 "발견한 것 적어보기"에서 쓴 문장이 여기 모입니다.</p>'
+          : '<ul class="discoveries-list">' + state.studentDiscoveries.map(function (d) {
+              return '<li><span class="discovery-step-tag">' + discoveryLabel(d.step) + '</span>' + escapeHtml(d.text) + '</li>';
+            }).join('') + '</ul>') +
+      '</div>' +
       '<div class="card">' +
-        '<h3>이번 탐구를 통해 알게 된 내용을 하나의 문장으로 정리해 봅시다.</h3>' +
-        '<p class="hint">표본을 통해 모집단의 평균을 추정할 때에는</p>' +
-        '<textarea id="s10-generalization-input" rows="3" placeholder="____________________________________________."></textarea>' +
-        '<button class="btn-secondary" id="s10-generalization-btn" style="margin-top:10px;">지금까지의 발견과 비교해 보세요</button>' +
-        '<div class="feedback' + (state.s10GeneralizationRevealed ? " correct" : " hidden") + '" id="s10-generalization-reveal">' + UNIT_GENERALIZATION + '</div>' +
+        '<h3>이번 탐구에서 발견한 관계들을 연결하여 하나의 문장으로 정리해 봅시다.</h3>' +
+        '<p class="hint">위에 모아둔 나의 발견들을 참고해서, 표본을 통해 모집단을 추정할 때 알아야 할 것을 문장으로 써 보세요.</p>' +
+        '<textarea id="s10-synthesis" rows="4" placeholder="____________________________________________."></textarea>' +
       '</div>';
 
     const resultEl = document.getElementById("s10-result");
@@ -1513,18 +1566,11 @@
       saveState();
     });
 
-    const generalizationInput = document.getElementById("s10-generalization-input");
-    generalizationInput.value = state.s10GeneralizationInput || "";
-    generalizationInput.addEventListener("input", function (e) {
-      state.s10GeneralizationInput = e.target.value;
+    const synthesis = document.getElementById("s10-synthesis");
+    synthesis.value = state.s10SynthesisText || "";
+    synthesis.addEventListener("input", function (e) {
+      state.s10SynthesisText = e.target.value;
       saveState();
-    });
-    document.getElementById("s10-generalization-btn").addEventListener("click", function () {
-      state.s10GeneralizationRevealed = true;
-      saveState();
-      const reveal = document.getElementById("s10-generalization-reveal");
-      reveal.classList.remove("hidden");
-      reveal.classList.add("correct");
     });
   }
 
@@ -1547,7 +1593,7 @@
     initPopulation();
     initNavEvents();
     initAllSteps();
-    checkDiscoveries();
+    renderDiscoveriesPanel();
     subscribe(function () {
       if (state.currentStep === 8 || document.getElementById("step-8").classList.contains("active")) {
         s8Render();
@@ -1563,6 +1609,9 @@
           // 8단계에서 모평균이 공개된 뒤 9단계로 되돌아오면, 이미 그려둔 구간 캔버스가
           // 공개 이전 상태로 굳어있으므로 다시 그려 최신 상태를 반영한다.
           if (document.getElementById("step-9").classList.contains("active")) s9Render();
+          // 10단계의 "지금까지 발견한 것 모아보기"는 다른 단계에서 쓴 발견을 그대로 보여주므로,
+          // 10단계에 들어올 때마다 최신 studentDiscoveries로 다시 그린다.
+          if (document.getElementById("step-10").classList.contains("active")) s10Render();
         }, 0);
       });
     });

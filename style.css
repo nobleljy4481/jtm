@@ -125,9 +125,43 @@ main { max-width: 760px; margin: 0 auto; padding: 24px 16px 100px; }
   margin: 24px 0 16px;
 }
 .discoveries-panel h3 { margin: 0 0 10px; font-size: 1rem; }
-.discoveries-list { margin: 0; padding-left: 20px; }
-.discoveries-list li { margin-bottom: 8px; font-size: 0.92rem; line-height: 1.5; }
+.discoveries-list { margin: 0; padding-left: 0; list-style: none; }
+.discoveries-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
 .discoveries-list li:last-child { margin-bottom: 0; }
+.discovery-step-tag {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--good);
+  background: var(--surface);
+  border: 1px solid var(--good);
+  border-radius: 999px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+.discovery-text { flex: 1; }
+.discovery-edit-btn {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0 2px;
+  opacity: 0.6;
+}
+.discovery-edit-btn:hover { opacity: 1; }
+.discovery-editing { flex-direction: column; align-items: stretch; }
+.discovery-editing .discovery-edit-input { margin-top: 6px; }
+.discovery-edit-actions { display: flex; gap: 8px; margin-top: 6px; }
+
+.discovery-prompt-card { background: var(--good-wash); border-color: var(--good); }
 
 .controls-card { display: flex; flex-direction: column; gap: 14px; }
 .control-row { display: flex; flex-direction: column; gap: 6px; }
