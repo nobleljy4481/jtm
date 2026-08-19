@@ -185,13 +185,18 @@
   // 탐구 질문에 대한 일반화를 쓰는 성격이라 카드 제목을 다르게 표시한다.
   const DISCOVERY_CARD_TITLES = { 10: "탐구 질문에 대한 일반화하기" };
 
+  // 10단계는 지금까지의 발견을 누적하는 게 아니라 마지막에 한 번 종합하는
+  // 일반화 문장이므로 "발견한 내용에 추가하기" 버튼(목록 누적)을 두지 않는다.
+  const DISCOVERY_NO_ADD_BUTTON_STEPS = [10];
+
   function discoveryPromptCardHtml(step, question, draftValue) {
     const title = DISCOVERY_CARD_TITLES[step] || "발견한 것 적어보기";
+    const showAddButton = DISCOVERY_NO_ADD_BUTTON_STEPS.indexOf(step) === -1;
     return '<div class="card discovery-prompt-card">' +
       '<h3><span class="panel-icon">💡</span> ' + title + '</h3>' +
       '<p>' + question + '</p>' +
       '<textarea id="s' + step + '-discovery-draft" rows="3" placeholder="한 문장으로 적어보세요.">' + escapeHtml(draftValue || "") + '</textarea>' +
-      '<button class="btn-secondary discovery-add-btn" data-step="' + step + '" style="margin-top:8px;">발견한 내용에 추가하기</button>' +
+      (showAddButton ? '<button class="btn-secondary discovery-add-btn" data-step="' + step + '" style="margin-top:8px;">발견한 내용에 추가하기</button>' : '') +
       '</div>';
   }
 
@@ -214,7 +219,8 @@
       state[draftField] = e.target.value;
       saveState();
     });
-    document.querySelector('.discovery-add-btn[data-step="' + step + '"]').addEventListener("click", function () {
+    const addBtn = document.querySelector('.discovery-add-btn[data-step="' + step + '"]');
+    if (addBtn) addBtn.addEventListener("click", function () {
       const added = addStudentDiscovery(step, textarea.value);
       if (added) {
         state[draftField] = "";
@@ -1422,7 +1428,7 @@
     const container = document.getElementById("step-8");
     container.innerHTML =
       (firstEntry ? '<div class="card reflect-card"><p><strong>사실 모집단은 이랬습니다!</strong> 지금까지 여러분이 추정해온 진짜 모집단을 공개합니다.</p></div>' : '') +
-      '<h2>신뢰도의 의미는 반복해서 구한 신뢰구간에서 어떻게 나타날까?</h2>' +
+      '<h2>신뢰도의 의미는 반복해서 얻어진 신뢰구간에서 어떻게 나타날까?</h2>' +
       '<div class="card">' +
         '<canvas id="s8-histogram-canvas" width="600" height="220"></canvas>' +
         '<div id="s8-stats"></div>' +
