@@ -923,10 +923,10 @@
       if (state.s6Target === 95) state.s6Found95 = true;
       if (state.s6Target === 99) state.s6Found99 = true;
     }
-    // 방금 이 목표값을 처음 찾았고, 부등식 변형 카드가 같은 신뢰도 수준을 보고 있다면
-    // 카드가 잠금 해제된 상태로 즉시 다시 그려지도록 한다. (#s6-find-section의 DOM은
-    // 이 함수에서 건드리지 않으므로 슬라이더 드래그 중 pointer capture는 영향받지 않는다.)
-    if (found && !wasFound && state.s6DerivLevel === state.s6Target) {
+    // 방금 이 목표값을 처음 찾았다면, 부등식 변형 카드가 "95%·99% 둘 다 찾았는지"를
+    // 다시 확인해서 즉시 반영되도록 한다. (#s6-find-section의 DOM은 이 함수에서
+    // 건드리지 않으므로 슬라이더 드래그 중 pointer capture는 영향받지 않는다.)
+    if (found && !wasFound) {
       s6DerivRender();
     }
 
@@ -1042,7 +1042,9 @@
     if (existing) existing.remove();
 
     const level = state.s6DerivLevel;
-    const found = level === 95 ? state.s6Found95 : state.s6Found99;
+    // 95%·99% 두 z값을 모두 찾아야 부등식 변형 카드 전체가 열린다(둘 중 하나만
+    // 찾았다고 해당 신뢰도만 먼저 열리지 않음).
+    const bothFound = state.s6Found95 && state.s6Found99;
 
     const section = document.createElement("div");
     section.id = "s6-deriv-section";
@@ -1050,16 +1052,16 @@
     const toggleHtml =
       '<div class="control-row toggle-row"><span>신뢰도</span>' +
         '<div class="toggle-group" id="s6-deriv-level">' +
-          '<button class="toggle-btn' + (level === 95 ? " active" : "") + '" data-val="95">95%</button>' +
-          '<button class="toggle-btn' + (level === 99 ? " active" : "") + '" data-val="99">99%</button>' +
+          '<button class="toggle-btn' + (level === 95 ? " active" : "") + '" data-val="95">95%' + (state.s6Found95 ? " ✓" : "") + '</button>' +
+          '<button class="toggle-btn' + (level === 99 ? " active" : "") + '" data-val="99">99%' + (state.s6Found99 ? " ✓" : "") + '</button>' +
         '</div></div>';
 
-    if (!found) {
+    if (!bothFound) {
       section.innerHTML =
         '<div class="card">' +
-          '<h3>부등식 변형 — 방금 찾은 z값으로 신뢰구간 공식 유도하기</h3>' +
+          '<h3>부등식 변형 — 찾은 z값으로 신뢰구간 공식 유도하기</h3>' +
           toggleHtml +
-          '<p class="summary-text">먼저 위에서 슬라이더로 z값을 찾아보세요. z를 찾으면 이 카드에 부등식 유도 과정이 나타납니다.</p>' +
+          '<p class="summary-text">먼저 위에서 슬라이더로 95%와 99%에 해당하는 z값을 모두 찾아보세요. 둘 다 찾으면 이 카드에 부등식 유도 과정이 나타납니다.</p>' +
         '</div>';
       container.appendChild(section);
 
