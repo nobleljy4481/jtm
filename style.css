@@ -34,15 +34,18 @@ body {
   text-align: center;
 }
 .header-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  position: relative;
   max-width: 900px;
   margin: 0 auto 12px;
 }
-.site-header h1 { margin: 0; font-size: 1.5rem; }
-.site-header #resetBtn { margin: 0; flex-shrink: 0; }
+.site-header h1 { margin: 0; font-size: 1.5rem; text-align: center; }
+.site-header #resetBtn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+}
 
 .driving-question-bar {
   position: sticky;
