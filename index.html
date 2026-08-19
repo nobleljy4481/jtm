@@ -36,24 +36,29 @@ window.MathJax = { tex: { inlineMath: [['$', '$']] } };
   <span class="dq-text">표본에서 얻은 정보는 어떻게 모집단에 대한 근거 있는 판단으로 이어질 수 있을까?</span>
 </div>
 
-<main>
-  <section class="step" id="step-1" data-step="1"></section>
-  <section class="step" id="step-2" data-step="2"></section>
-  <section class="step" id="step-3" data-step="3"></section>
-  <section class="step" id="step-4" data-step="4"></section>
-  <section class="step" id="step-5" data-step="5"></section>
-  <section class="step" id="step-6" data-step="6"></section>
-  <section class="step" id="step-7" data-step="7"></section>
-  <section class="step" id="step-8" data-step="8"></section>
-  <section class="step" id="step-9" data-step="9"></section>
-  <section class="step" id="step-10" data-step="10"></section>
+<div class="page-layout">
+  <main>
+    <section class="step" id="step-1" data-step="1"></section>
+    <section class="step" id="step-2" data-step="2"></section>
+    <section class="step" id="step-3" data-step="3"></section>
+    <section class="step" id="step-4" data-step="4"></section>
+    <section class="step" id="step-5" data-step="5"></section>
+    <section class="step" id="step-6" data-step="6"></section>
+    <section class="step" id="step-7" data-step="7"></section>
+    <section class="step" id="step-8" data-step="8"></section>
+    <section class="step" id="step-9" data-step="9"></section>
+    <section class="step" id="step-10" data-step="10"></section>
+  </main>
 
-  <aside class="discoveries-panel" id="discoveriesPanel">
-    <h3><span class="panel-icon">💡</span> 우리가 지금까지 발견한 것</h3>
-    <ul class="discoveries-list" id="discoveriesList"></ul>
-    <p class="hint" id="discoveriesEmpty">활동을 통해 발견한 관계가 이곳에 하나씩 정리됩니다.</p>
+  <aside class="discovery-sidebar" id="discoverySidebar">
+    <div id="discoveryWriteSlot"></div>
+    <div class="card discoveries-panel" id="discoveriesPanel">
+      <h3><span class="panel-icon">💡</span> 우리가 지금까지 발견한 것</h3>
+      <ul class="discoveries-list" id="discoveriesList"></ul>
+      <p class="hint" id="discoveriesEmpty">활동을 통해 발견한 관계가 이곳에 하나씩 정리됩니다.</p>
+    </div>
   </aside>
-</main>
+</div>
 
 <footer class="nav-buttons">
   <button class="btn-secondary" id="prevBtn">이전</button>

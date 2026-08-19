@@ -96,7 +96,29 @@ body {
 .progress-bar li.done .dot { background: var(--good); color: #fff; }
 .progress-bar .label { font-size: 0.68rem; color: var(--ink-muted); text-align: center; word-break: keep-all; }
 
-main { max-width: 760px; margin: 0 auto; padding: 24px 16px 100px; }
+.page-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+main { flex: 1 1 0; min-width: 0; max-width: 760px; margin: 0; padding: 24px 0 100px; }
+
+.discovery-sidebar {
+  flex: 0 0 320px;
+  width: 320px;
+  position: sticky;
+  top: 52px;
+  margin-top: 24px;
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+}
+@media (max-width: 1050px) {
+  .page-layout { flex-direction: column; }
+  .discovery-sidebar { position: static; width: 100%; max-height: none; margin-top: 0; }
+}
 .step { display: none; }
 .step.active { display: block; }
 .step h2 { font-size: 1.25rem; margin: 0 0 16px; line-height: 1.4; }
@@ -122,7 +144,7 @@ main { max-width: 760px; margin: 0 auto; padding: 24px 16px 100px; }
   border: 1px solid var(--good);
   border-radius: var(--radius);
   padding: 16px 20px;
-  margin: 24px 0 16px;
+  margin: 16px 0 0;
 }
 .discoveries-panel h3 { margin: 0 0 10px; font-size: 1rem; }
 .discoveries-list { margin: 0; padding-left: 0; list-style: none; }

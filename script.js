@@ -168,7 +168,19 @@
     });
   }
 
-  // 단계 안에 넣는 "발견 작성" 카드 — 4개 단계(3·5·8·9)에서 공통으로 사용
+  // 단계별 "발견 작성" 질문. 1단계는 아직 활동이 없어 항목이 없다.
+  const DISCOVERY_QUESTIONS = {
+    2: "표본을 여러 번 뽑아보니 표본평균은 어떻게 달라졌나요? 이번 활동에서 발견한 것을 한 문장으로 적어보세요.",
+    3: "하나의 값이 아니라 범위로 추정하면 어떤 점이 좋을까요? 이 활동에서 발견한 것을 적어보세요.",
+    4: "오차범위(구간의 폭)를 넓히거나 좁힐 때, 모평균을 포함하는 정도는 어떻게 달라졌나요? 발견한 관계를 적어보세요.",
+    5: "신뢰도와 신뢰구간 사이에는 어떤 관계가 있었나요? 발견한 관계를 한 문장으로 적어보세요.",
+    6: "표준정규분포에서 찾은 z값은 신뢰구간 공식에서 어떤 역할을 하나요? 이번 활동에서 알게 된 것을 적어보세요.",
+    7: "신뢰도(95%, 99%)에 따라 같은 표본의 신뢰구간은 어떻게 달라졌나요? 발견한 것을 적어보세요.",
+    8: "같은 방법으로 표본추출과 신뢰구간 구성을 반복했을 때 어떤 규칙성을 발견했나요?",
+    9: "표본의 크기가 달라질 때 신뢰구간은 어떻게 달라졌나요? 발견한 관계를 적어보세요.",
+    10: "새로운 상황(통학시간)에도 같은 방법을 적용해보니 어땠나요? 이번 활동에서 새롭게 확인하거나 다시 확인한 것을 적어보세요.",
+  };
+
   function discoveryPromptCardHtml(step, question, draftValue) {
     return '<div class="card discovery-prompt-card">' +
       '<h3><span class="panel-icon">💡</span> 발견한 것 적어보기</h3>' +
@@ -178,11 +190,20 @@
       '</div>';
   }
 
-  // discoveryPromptCardHtml로 만든 카드의 textarea/버튼에 이벤트를 연결.
-  // draftField는 defaultState()의 초안 저장 필드명(예: "s3DiscoveryDraft").
-  // onAdded: 이 단계 화면 안에 발견 목록을 다시 보여주는 부분이 있을 때(예: 10단계 모아보기)
-  // 추가 직후 그 부분도 최신 상태로 다시 그리기 위한 선택적 콜백.
-  function wireDiscoveryPromptCard(step, draftField, onAdded) {
+  // 오른쪽 사이드바에 "지금 보고 있는 단계"의 발견 작성 카드 하나만 그린다.
+  // goToStep()에서 단계가 바뀔 때마다 다시 호출된다. 1단계는 질문이 없어 비워둔다.
+  function renderDiscoveryWriteSlot() {
+    const slot = document.getElementById("discoveryWriteSlot");
+    if (!slot) return;
+    const step = state.currentStep;
+    const question = DISCOVERY_QUESTIONS[step];
+    if (!question) {
+      slot.innerHTML = "";
+      return;
+    }
+    const draftField = "s" + step + "DiscoveryDraft";
+    slot.innerHTML = discoveryPromptCardHtml(step, question, state[draftField]);
+
     const textarea = document.getElementById("s" + step + "-discovery-draft");
     textarea.addEventListener("input", function (e) {
       state[draftField] = e.target.value;
@@ -192,9 +213,8 @@
       const added = addStudentDiscovery(step, textarea.value);
       if (added) {
         state[draftField] = "";
-        textarea.value = "";
         saveState();
-        if (onAdded) onAdded();
+        renderDiscoveryWriteSlot();
       }
     });
   }
@@ -213,9 +233,10 @@
     document.getElementById("stepIndicator").textContent = n + " / " + TOTAL_STEPS;
     document.getElementById("prevBtn").disabled = n === 1;
     document.getElementById("nextBtn").disabled = n === TOTAL_STEPS;
-    // "우리가 지금까지 발견한 것" 패널은 1단계(아직 아무 활동도 없음)에는 보이지 않고 2단계부터 나타난다.
-    const discoveriesPanel = document.getElementById("discoveriesPanel");
-    if (discoveriesPanel) discoveriesPanel.style.display = (n === 1) ? "none" : "";
+    // 발견 사이드바(작성 카드 + 누적 목록)는 1단계(아직 아무 활동도 없음)에는 보이지 않고 2단계부터 나타난다.
+    const sidebar = document.getElementById("discoverySidebar");
+    if (sidebar) sidebar.style.display = (n === 1) ? "none" : "";
+    renderDiscoveryWriteSlot();
     saveState();
     window.scrollTo(0, 0);
   }
@@ -592,8 +613,7 @@
         '<p id="s2-summary" class="summary-text"></p></div>' +
       '<div class="card reflect-card">' +
         '<p>표본을 뽑을 때마다 표본평균 값이 계속 달라집니다. 그렇다면 이 값들 중 어느 하나가 정확히 "진짜" 모평균이라고 확신할 수 있을까요?</p>' +
-      '</div>' +
-      discoveryPromptCardHtml(2, "표본을 여러 번 뽑아보니 표본평균은 어떻게 달라졌나요? 이번 활동에서 발견한 것을 한 문장으로 적어보세요.", state.s2DiscoveryDraft);
+      '</div>';
 
     const canvas = document.getElementById("s2-chart");
     if (state.s2History.length === 0) {
@@ -612,8 +632,6 @@
       saveState();
       s2Render();
     });
-
-    wireDiscoveryPromptCard(2, "s2DiscoveryDraft");
   }
 
   function s3Render() {
@@ -623,8 +641,7 @@
       '<div class="card">' +
         '<p>방금 확인했듯, 표본평균 하나(점추정)는 뽑을 때마다 달라집니다. 그렇다면 모평균을 <strong>하나의 값이 아니라 일정한 범위(구간)</strong>로 추정하면 어떤 점이 더 나을까요? 자유롭게 생각을 적어보세요.</p>' +
         '<textarea id="s3-text" rows="4" placeholder="예: 표본평균이 매번 달라지니까..."></textarea>' +
-      '</div>' +
-      discoveryPromptCardHtml(3, "하나의 값이 아니라 범위로 추정하면 어떤 점이 좋을까요? 이 활동에서 발견한 것을 적어보세요.", state.s3DiscoveryDraft);
+      '</div>';
 
     const textarea = document.getElementById("s3-text");
     textarea.value = state.s3Text || "";
@@ -632,8 +649,6 @@
       state.s3Text = e.target.value;
       saveState();
     });
-
-    wireDiscoveryPromptCard(3, "s3DiscoveryDraft");
   }
 
   /* ===== Task 6: 4단계 — 구간 길이와 포함 정도 탐구 ===== */
@@ -759,8 +774,7 @@
       '<div class="card"><canvas id="s4-batch-canvas" width="600" height="200"></canvas>' +
         '<p id="s4-batch-summary" class="summary-text"></p></div>' +
       '<div class="card reflect-card"><p>오차범위를 넓히거나 좁히면 포함 비율이 어떻게 바뀌나요? 아래는 여러 번 실험한 결과입니다.</p>' +
-        '<canvas id="s4-trend-canvas" width="600" height="90"></canvas></div>' +
-      discoveryPromptCardHtml(4, "오차범위(구간의 폭)를 넓히거나 좁힐 때, 모평균을 포함하는 정도는 어떻게 달라졌나요? 발견한 관계를 적어보세요.", state.s4DiscoveryDraft);
+        '<canvas id="s4-trend-canvas" width="600" height="90"></canvas></div>';
 
     document.getElementById("s4-margin").addEventListener("input", function (e) {
       state.s4Margin = Number(e.target.value);
@@ -783,8 +797,6 @@
         "± " + state.s4Margin + "분 오차범위로 만든 " + state.s4Batch.length + "개 구간 중 " + containCount + "개가 실제 모평균을 포함했습니다.";
     }
     drawTrendChart(document.getElementById("s4-trend-canvas"), state.s4Explored, [1, 40], [0, 1]);
-
-    wireDiscoveryPromptCard(4, "s4DiscoveryDraft");
   }
 
   /* ===== Task 7: 표준정규분포 넓이 계산 · 곡선 그리기 ===== */
@@ -882,10 +894,7 @@
       '<div class="card">' +
         '<p>모평균을 추정하기 위해 만든 구간을 <strong>"신뢰구간"</strong>이라 부르고, 같은 방법으로 구간을 반복해서 만들었을 때 그 구간이 실제 모평균을 포함할 것으로 기대되는 비율을 <strong>"신뢰도"</strong>라고 합니다.</p>' +
         '<p>일반적으로 통계에서는 신뢰도로 <strong>95%와 99%</strong>를 많이 사용합니다.</p>' +
-      '</div>' +
-      discoveryPromptCardHtml(5, "신뢰도와 신뢰구간 사이에는 어떤 관계가 있었나요? 발견한 관계를 한 문장으로 적어보세요.", state.s5DiscoveryDraft);
-
-    wireDiscoveryPromptCard(5, "s5DiscoveryDraft");
+      '</div>';
   }
 
   const TARGET_TOLERANCE = 0.003;
@@ -1027,14 +1036,6 @@
     const section = document.createElement("div");
     section.id = "s6-deriv-section";
 
-    // #s6-discovery-section(발견 작성 카드)이 있으면 그 앞에 넣어서, 항상
-    // find-section → deriv-section → discovery-section 순서가 유지되게 한다.
-    function insertDerivSection() {
-      const discoverySection = container.querySelector("#s6-discovery-section");
-      if (discoverySection) container.insertBefore(section, discoverySection);
-      else container.appendChild(section);
-    }
-
     const toggleHtml =
       '<div class="control-row toggle-row"><span>신뢰도</span>' +
         '<div class="toggle-group" id="s6-deriv-level">' +
@@ -1049,7 +1050,7 @@
           toggleHtml +
           '<p class="summary-text">먼저 위에서 슬라이더로 z값을 찾아보세요. z를 찾으면 이 카드에 부등식 유도 과정이 나타납니다.</p>' +
         '</div>';
-      insertDerivSection();
+      container.appendChild(section);
 
       document.querySelectorAll("#s6-deriv-level .toggle-btn").forEach(function (btn) {
         btn.addEventListener("click", function () {
@@ -1110,19 +1111,6 @@
     }
   }
 
-  // 6단계의 "발견 작성" 카드. find/deriv 섹션과 달리 슬라이더·토글에 반응해
-  // 다시 그릴 필요가 없으므로, 한 번만 만들고(guard) 그 뒤로는 손대지 않는다.
-  // 항상 find-section·deriv-section 다음(맨 끝)에 붙는다.
-  function s6DiscoveryRender() {
-    const container = document.getElementById("step-6");
-    if (container.querySelector("#s6-discovery-section")) return;
-    const section = document.createElement("div");
-    section.id = "s6-discovery-section";
-    section.innerHTML = discoveryPromptCardHtml(6, "표준정규분포에서 찾은 z값은 신뢰구간 공식에서 어떤 역할을 하나요? 이번 활동에서 알게 된 것을 적어보세요.", state.s6DiscoveryDraft);
-    container.appendChild(section);
-    wireDiscoveryPromptCard(6, "s6DiscoveryDraft");
-  }
-
   /* ===== Task 10: 7단계 — 한 표본의 신뢰구간 계산과 해석 ===== */
 
   function drawOneTrial() {
@@ -1158,7 +1146,7 @@
   function s7Render() {
     const container = document.getElementById("step-7");
     container.innerHTML =
-      '<h2>우리가 만든 공식으로 실제 표본의 신뢰구간을 구하면 무엇을 알 수 있을까?</h2>' +
+      '<h2>표본에서 구한 신뢰구간은 어떻게 해석할 수 있을까?</h2>' +
       '<div class="card">' +
         '<label>표본크기 (n): <span id="s7-n-label">' + state.sampleSize + '</span></label>' +
         '<input id="s7-n-slider" type="range" min="10" max="200" value="' + state.sampleSize + '">' +
@@ -1173,8 +1161,7 @@
       '<div class="card"><div id="s7-sample-table" class="scroll-box"></div></div>' +
       '<div class="card"><div id="s7-calc"></div></div>' +
       '<div class="card"><canvas id="s7-interval-canvas" width="600" height="120"></canvas>' +
-        '<p id="s7-verdict"></p></div>' +
-      discoveryPromptCardHtml(7, "신뢰도(95%, 99%)에 따라 같은 표본의 신뢰구간은 어떻게 달라졌나요? 발견한 것을 적어보세요.", state.s7DiscoveryDraft);
+        '<p id="s7-verdict"></p></div>';
 
     document.getElementById("s7-n-slider").addEventListener("input", function (e) {
       state.sampleSize = Number(e.target.value);
@@ -1189,7 +1176,6 @@
       });
     });
     document.getElementById("s7-draw").addEventListener("click", s7DrawSample);
-    wireDiscoveryPromptCard(7, "s7DiscoveryDraft");
 
     const cs = state.currentSample;
     if (!cs) {
@@ -1431,7 +1417,7 @@
     const container = document.getElementById("step-8");
     container.innerHTML =
       (firstEntry ? '<div class="card reflect-card"><p><strong>사실 모집단은 이랬습니다!</strong> 지금까지 여러분이 추정해온 진짜 모집단을 공개합니다.</p></div>' : '') +
-      '<h2>같은 방법으로 반복하면 어떤 규칙성이 나타날까?</h2>' +
+      '<h2>신뢰도의 의미는 반복해서 구한 신뢰구간에서 어떻게 나타날까?</h2>' +
       '<div class="card">' +
         '<canvas id="s8-histogram-canvas" width="600" height="220"></canvas>' +
         '<div id="s8-stats"></div>' +
@@ -1459,8 +1445,7 @@
           '<canvas id="s8-gauge99-canvas" width="140" height="140"></canvas>' +
         '</div>' +
         '<canvas id="s8-convergence-canvas" width="560" height="160"></canvas>' +
-      '</div>' +
-      discoveryPromptCardHtml(8, "같은 방법으로 표본추출과 신뢰구간 구성을 반복했을 때 어떤 규칙성을 발견했나요?", state.s8DiscoveryDraft);
+      '</div>';
 
     drawHistogram(document.getElementById("s8-histogram-canvas"), state.population, state.mu, state.sigma, true);
     const values = state.population.map(function (p) { return p.minutes; });
@@ -1492,8 +1477,6 @@
         s8RenderResults(false);
       });
     });
-
-    wireDiscoveryPromptCard(8, "s8DiscoveryDraft");
 
     s8RenderResults(false);
   }
@@ -1530,8 +1513,7 @@
       '<div class="card"><canvas id="s9-interval-canvas" width="600" height="120"></canvas>' +
         '<p id="s9-summary" class="summary-text"></p></div>' +
       '<div class="card"><canvas id="s9-trend-canvas" width="600" height="90"></canvas>' +
-        '<p class="hint">가로축: 표본크기 n (10~200) · 세로축: 신뢰구간 폭 · 슬라이더를 움직여 여러 n을 탐색해보세요.</p></div>' +
-      discoveryPromptCardHtml(9, "표본의 크기가 달라질 때 신뢰구간은 어떻게 달라졌나요? 발견한 관계를 적어보세요.", state.s9DiscoveryDraft);
+        '<p class="hint">가로축: 표본크기 n (10~200) · 세로축: 신뢰구간 폭 · 슬라이더를 움직여 여러 n을 탐색해보세요.</p></div>';
 
     s9UpdateDisplay(n);
 
@@ -1539,8 +1521,6 @@
       state.sampleSize = Number(e.target.value);
       s9UpdateDisplay(state.sampleSize);
     });
-
-    wireDiscoveryPromptCard(9, "s9DiscoveryDraft");
   }
 
   /* ===== Task 13: 10단계 — 새로운 상황에 적용 · 전체 통합 ===== */
@@ -1571,18 +1551,9 @@
         '<label for="s10-justify-reason" style="margin-top:10px;display:block;">그 근거는 ____이다.</label>' +
         '<textarea id="s10-justify-reason" rows="3" placeholder="예: 95% 신뢰구간이 ~이기 때문에..."></textarea>' +
       '</div>' +
-      discoveryPromptCardHtml(10, "새로운 상황(통학시간)에도 같은 방법을 적용해보니 어땠나요? 이번 활동에서 새롭게 확인하거나 다시 확인한 것을 적어보세요.", state.s10DiscoveryDraft) +
-      '<div class="card discoveries-panel">' +
-        '<h3><span class="panel-icon">💡</span> 지금까지 발견한 것 모아보기</h3>' +
-        (state.studentDiscoveries.length === 0
-          ? '<p class="hint">아직 작성한 발견이 없습니다. 각 단계의 "발견한 것 적어보기"에서 쓴 문장이 여기 모입니다.</p>'
-          : '<ul class="discoveries-list">' + state.studentDiscoveries.map(function (d) {
-              return '<li><span class="discovery-step-tag">' + discoveryLabel(d.step) + '</span>' + escapeHtml(d.text) + '</li>';
-            }).join('') + '</ul>') +
-      '</div>' +
       '<div class="card">' +
         '<h3>이번 탐구에서 발견한 관계들을 연결하여 하나의 문장으로 정리해 봅시다.</h3>' +
-        '<p class="hint">위에 모아둔 나의 발견들을 참고해서, 표본을 통해 모집단을 추정할 때 알아야 할 것을 문장으로 써 보세요.</p>' +
+        '<p class="hint">오른쪽에 모아둔 나의 발견들을 참고해서, 표본을 통해 모집단을 추정할 때 알아야 할 것을 문장으로 써 보세요.</p>' +
         '<textarea id="s10-synthesis" rows="4" placeholder="____________________________________________."></textarea>' +
       '</div>';
 
@@ -1625,8 +1596,6 @@
       state.s10SynthesisText = e.target.value;
       saveState();
     });
-
-    wireDiscoveryPromptCard(10, "s10DiscoveryDraft", s10Render);
   }
 
   function initAllSteps() {
@@ -1637,7 +1606,6 @@
     s5Render();
     s6FindRender();
     s6DerivRender();
-    s6DiscoveryRender();
     s7Render();
     s9Render();
     s10Render();
