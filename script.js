@@ -1089,7 +1089,7 @@
         '</div>' +
         '<div class="feedback hidden" id="s6-mcq-feedback"></div>' +
       '</div>';
-    insertDerivSection();
+    container.appendChild(section);
 
     document.querySelectorAll("#s6-deriv-level .toggle-btn").forEach(function (btn) {
       btn.addEventListener("click", function () {
