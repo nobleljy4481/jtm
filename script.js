@@ -878,7 +878,7 @@
   function s5Render() {
     const container = document.getElementById("step-5");
     container.innerHTML =
-      '<h2>95%, 99% 신뢰한다는 것은 무엇을 의미할까?</h2>' +
+      '<h2>추정의 불확실성은 어떻게 표현하고 해석할 수 있는가? — 95%, 99% 신뢰한다는 것은 무엇을 의미할까?</h2>' +
       '<div class="card">' +
         '<p>모평균을 추정하기 위해 만든 구간을 <strong>"신뢰구간"</strong>이라 부르고, 같은 방법으로 구간을 반복해서 만들었을 때 그 구간이 실제 모평균을 포함할 것으로 기대되는 비율을 <strong>"신뢰도"</strong>라고 합니다.</p>' +
         '<p>일반적으로 통계에서는 신뢰도로 <strong>95%와 99%</strong>를 많이 사용합니다.</p>' +
