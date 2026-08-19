@@ -178,12 +178,17 @@
     7: "신뢰도(95%, 99%)에 따라 같은 표본의 신뢰구간은 어떻게 달라졌나요? 발견한 것을 적어보세요.",
     8: "같은 방법으로 표본추출과 신뢰구간 구성을 반복했을 때 어떤 규칙성을 발견했나요?",
     9: "표본의 크기가 달라질 때 신뢰구간은 어떻게 달라졌나요? 발견한 관계를 적어보세요.",
-    10: "새로운 상황(통학시간)에도 같은 방법을 적용해보니 어땠나요? 이번 활동에서 새롭게 확인하거나 다시 확인한 것을 적어보세요.",
+    10: "이번 학습을 통해 알게 된 내용을 바탕으로, 탐구 질문에 대한 자신의 생각을 일반화하여 한 문장으로 정리해 보세요.",
   };
 
+  // 대부분의 단계는 "발견한 것 적어보기"지만, 10단계는 지금까지의 활동을 종합해
+  // 탐구 질문에 대한 일반화를 쓰는 성격이라 카드 제목을 다르게 표시한다.
+  const DISCOVERY_CARD_TITLES = { 10: "탐구 질문에 대한 일반화하기" };
+
   function discoveryPromptCardHtml(step, question, draftValue) {
+    const title = DISCOVERY_CARD_TITLES[step] || "발견한 것 적어보기";
     return '<div class="card discovery-prompt-card">' +
-      '<h3><span class="panel-icon">💡</span> 발견한 것 적어보기</h3>' +
+      '<h3><span class="panel-icon">💡</span> ' + title + '</h3>' +
       '<p>' + question + '</p>' +
       '<textarea id="s' + step + '-discovery-draft" rows="3" placeholder="한 문장으로 적어보세요.">' + escapeHtml(draftValue || "") + '</textarea>' +
       '<button class="btn-secondary discovery-add-btn" data-step="' + step + '" style="margin-top:8px;">발견한 내용에 추가하기</button>' +
